@@ -119,6 +119,23 @@ h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
 .saved .who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .saved .who span { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .saved .pct { font-family: var(--display); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pick-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.pick-list button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--bg); border: 1.5px solid transparent; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.pick-list button:hover { border-color: var(--line); }
+.pick-list button[aria-current="true"] { border-color: var(--pick); background: var(--pick-soft); }
+.pick-list b { font-weight: 600; overflow-wrap: anywhere; }
+.pick-list span { font-size: 0.8rem; color: var(--muted); }
+.pick-list li.empty { font-size: 0.85rem; color: var(--muted); padding: 6px 2px; }
+.picker { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.picker h3 { font-family: var(--display); font-size: 0.92rem; margin: 0 0 6px; }
+.inline { display: flex; gap: 8px; }
+.inline input { flex: 1; }
+.inline .btn { flex: none; }
+.cur { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cur .who { flex: 1; min-width: 0; }
+.cur .who b { display: block; overflow-wrap: anywhere; }
+.cur .who span { font-size: 0.8rem; color: var(--muted); }
+a.mini { text-decoration: none; }
 .mini { font: inherit; font-size: 0.85rem; font-weight: 600; padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 
 .scorebar {
@@ -147,6 +164,39 @@ h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
     <p>Tap the band descriptor that best matches the candidate for each criterion. The score updates as you go.</p>
   </header>
 
+  <section class="panel" id="sheetPanel" aria-label="Google Sheet">
+    <div class="cur">
+      <span class="who"><b id="sheetName">No spreadsheet chosen</b><span id="sheetSub">Choose the Google Sheet where results are saved.</span></span>
+      <a class="mini" id="sheetOpen" target="_blank" rel="noopener" hidden>Open</a>
+      <button class="mini" id="sheetChange" type="button">Choose</button>
+    </div>
+    <div class="picker" id="picker" hidden>
+      <div>
+        <h3>Use an existing spreadsheet</h3>
+        <input id="pickSearch" type="search" placeholder="Search your spreadsheets by name" autocomplete="off" aria-label="Search your spreadsheets">
+        <ul class="pick-list" id="pickList"></ul>
+      </div>
+      <div>
+        <h3>Or paste its link</h3>
+        <div class="inline">
+          <input id="pickUrl" placeholder="docs.google.com/spreadsheets/d/…" autocomplete="off" aria-label="Spreadsheet link or ID">
+          <button class="btn" id="pickUrlGo" type="button">Use</button>
+        </div>
+      </div>
+      <div>
+        <h3>Or create a new one</h3>
+        <div class="inline">
+          <input id="newName" value="C1 Speaking Results" autocomplete="off" aria-label="New spreadsheet name">
+          <button class="btn primary" id="newGo" type="button">Create</button>
+        </div>
+        <p class="note" style="margin-top:6px">Creates a Google Sheet in your Drive with a Results tab, column headers, and total and percentage columns.</p>
+      </div>
+      <p class="msg" id="pickMsg" role="status" hidden></p>
+      <div class="row" id="addTabRow" hidden><button class="btn primary" id="addTab" type="button"></button></div>
+      <div class="row" id="pickCancelRow"><button class="btn" id="pickCancel" type="button">Cancel</button></div>
+    </div>
+  </section>
+
   <section class="panel fields" aria-label="Candidate details">
     <label class="f full">Candidate<input id="cand" autocomplete="off" placeholder="Full name"></label>
     <label class="f">Date<input id="date" type="date"></label>
@@ -170,7 +220,7 @@ h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
   <section class="panel" aria-label="Results in your Google Sheet">
     <div class="sheet-head">
       <h2>Saved in your sheet</h2>
-      <a id="sheetLink" target="_blank" rel="noopener">Open the sheet</a>
+      <a id="sheetLink" target="_blank" rel="noopener" hidden>Open the sheet</a>
     </div>
     <ul class="saved" id="saved"></ul>
     <div class="row" id="legacyRow" hidden>
@@ -189,11 +239,11 @@ h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
 </div>
 
 <script>
-// Paste the ID of your own Google Sheet here (the long string between /d/ and /edit in the sheet's URL).
-// The sheet needs a tab named "Results". See README.md.
-const SHEET_ID = "YOUR_SHEET_ID_HERE";
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+// The spreadsheet is chosen in the page (pick an existing one or create a new one) and remembered in this browser.
 const SERVER = "Google Sheets";
+const DRIVE = "Google Drive";
+const TAB = "Results";
+const SHEET_KEY = "c1-sheet";
 const BETWEEN = (a,b) => `Performance shares features of Bands ${a} and ${b}.`;
 const CRITERIA = [
   { id: "gr", name: "Grammatical Resource", d: {
@@ -219,6 +269,7 @@ const CRITERIA = [
 ];
 const MAX_BAND = 5;
 const MAX_TOTAL = MAX_BAND * CRITERIA.length;
+const HEADERS = ["Saved at", "Date", "Candidate", "Examiner", ...CRITERIA.map(c => c.name), "Comments"];
 function descriptor(c, b) {
   if (b === 0) return "Performance below Band 1.";
   if (b === 2) return BETWEEN(1,3);
@@ -238,7 +289,8 @@ const pad = n => String(n).padStart(2, "0");
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
 const stamp = () => { const d = new Date(); return `${today()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 
-$("sheetLink").href = SHEET_URL;
+const sheetUrl = id => `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit`;
+let sheet = (s => s && typeof s.id === "string" && s.id ? s : null)(store.get(SHEET_KEY, null));
 
 function buildCriteria() {
   const host = $("crits");
@@ -345,20 +397,20 @@ function rowFor(r, savedAt) {
   return [savedAt || stamp(), r.date || today(), sheetText(r.cand), sheetText(r.exam),
     ...CRITERIA.map(c => r.scores[c.id]), sheetText(r.comm)];
 }
-function explain(err, action) {
+function explain(err, action, name = SERVER) {
   const code = err && err.code;
   switch (code) {
-    case "needs_reauth": return ["Google Sheets needs to be reconnected. Reconnect it in claude.ai Settings, Connectors, then try again.", "bad"];
+    case "needs_reauth": return [`${name} needs to be reconnected. Reconnect it in claude.ai Settings, Connectors, then try again.`, "bad"];
     case "server_not_connected":
     case "selection_required":
-    case "server_not_found": return ["Google Sheets isn't connected to your Claude account. Add it in claude.ai Settings, Connectors, then try again.", "bad"];
+    case "server_not_found": return [`${name} isn't connected to your Claude account. Add it in claude.ai Settings, Connectors, then try again.`, "bad"];
     case "not_in_manifest":
-    case "approval_required": return ["This page needs your permission to use Google Sheets. Tap the button again and choose Allow.", "bad"];
-    case "blocked_by_policy": return ["Your organisation's settings block this page from using Google Sheets.", "bad"];
+    case "approval_required": return [`This page needs your permission to use ${name}. Tap the button again and choose Allow.`, "bad"];
+    case "blocked_by_policy": return [`Your organisation's settings block this page from using ${name}.`, "bad"];
     case "not_granted":
     case "capability_disabled":
-    case "capability_removed": return ["Google Sheets can't be reached from this view. Open the page on claude.ai to save to your sheet.", "bad"];
-    case "tool_error": return [`Google Sheets reported a problem: ${err.message || "unknown error"}.`, "bad"];
+    case "capability_removed": return [`${name} can't be reached from this view. Open the page on claude.ai to save to your sheet.`, "bad"];
+    case "tool_error": return [`${name} reported a problem: ${err.message || "unknown error"}.`, "bad"];
     default:
       return action === "write"
         ? ["Google Sheets didn't answer in time, so the row may or may not have been added. Check the list below before saving again.", "bad"]
@@ -367,11 +419,13 @@ function explain(err, action) {
 }
 
 async function readSaved(fresh) {
-  if (!mcp) return;
+  if (!mcp || !sheet) return;
+  const id = sheet.id;
   const btn = $("refresh");
   btn.disabled = true; btn.textContent = "Loading…";
   try {
-    const res = await mcp.callTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: "Results!A2:L" }, fresh ? { cache: { refresh: true } } : undefined);
+    const res = await mcp.callTool(SERVER, "get_values", { spreadsheetId: id, range: `${TAB}!A2:L` }, fresh ? { cache: { refresh: true } } : undefined);
+    if (!sheet || sheet.id !== id) return;   // the spreadsheet was changed while this was loading
     const p = res.payload || {};
     renderSaved(Array.isArray(p.values) ? p.values : []);
     btn.textContent = "Refresh";
@@ -403,10 +457,11 @@ $("save").onclick = async () => {
   const missing = CRITERIA.filter(c => r.scores[c.id] === undefined);
   if (missing.length) { say(`Score all five criteria before saving. Still to score: ${missing.map(c => c.name).join(", ")}.`, "bad"); return; }
   if (!mcp) { say(explain({ code: "not_granted" })[0], "bad"); return; }
+  if (!sheet) { openPicker(); say("Choose or create a spreadsheet first, then tap Save again.", "bad"); $("sheetPanel").scrollIntoView({ block: "start" }); return; }
   saving = true; const btn = $("save"); btn.disabled = true; btn.textContent = "Saving…";
   try {
-    await mcp.callTool(SERVER, "append_values", { spreadsheetId: SHEET_ID, range: "Results!A:J", values: [rowFor(r)] });
-    say(`Saved ${r.cand} to the Results tab.`, "ok");
+    await mcp.callTool(SERVER, "append_values", { spreadsheetId: sheet.id, range: `${TAB}!A:J`, values: [rowFor(r)] });
+    say(`Saved ${r.cand} to ${sheet.title || "your spreadsheet"}.`, "ok");
     readSaved(true);
   } catch (e) {
     const [t, k] = explain(e, "write"); say(t, k);
@@ -417,18 +472,220 @@ $("save").onclick = async () => {
 };
 $("refresh").onclick = () => readSaved(true);
 
+/* ---------- Choosing the spreadsheet ---------- */
+let pickerOpen = false;
+let pendingTab = null;          // an existing spreadsheet that has no Results tab yet
+let listSeq = 0;
+let busy = false;
+let driveGranted = false;
+
+function pickSay(text, kind = "info") {
+  const m = $("pickMsg"); m.textContent = text; m.className = "msg " + kind; m.hidden = !text;
+}
+function renderSheet() {
+  $("sheetName").textContent = sheet ? (sheet.title || "Untitled spreadsheet") : "No spreadsheet chosen";
+  $("sheetSub").textContent = !mcp
+    ? "Saving to Google Sheets works when this page is open on claude.ai."
+    : sheet ? `Results are saved to its ${TAB} tab.` : "Choose the Google Sheet where results are saved.";
+  $("sheetOpen").hidden = !sheet;
+  $("sheetLink").hidden = !sheet;
+  if (sheet) { $("sheetOpen").href = sheetUrl(sheet.id); $("sheetLink").href = sheetUrl(sheet.id); }
+  $("sheetChange").textContent = sheet ? "Change" : "Choose";
+  $("sheetChange").hidden = !mcp || pickerOpen;
+  $("picker").hidden = !pickerOpen;
+  $("pickCancelRow").hidden = !sheet;
+  $("refresh").hidden = !mcp || !sheet;
+  if (!sheet && mcp) $("saved").innerHTML = `<li><span class="who"><span>Choose a spreadsheet above to see its saved results.</span></span></li>`;
+}
+function setSheet(next) {
+  sheet = next; pendingTab = null;
+  store.set(SHEET_KEY, sheet);
+  closePicker();
+  showLegacy();
+  $("saved").innerHTML = "";
+  readSaved(true);
+}
+function openPicker() {
+  if (!mcp) return;
+  pickerOpen = true; pendingTab = null; $("addTabRow").hidden = true; pickSay("");
+  renderSheet();
+  if (driveGranted) loadList($("pickSearch").value.trim());
+  else $("pickList").innerHTML = `<li><button type="button" id="pickLoad"><b>Show my spreadsheets</b><span>Lists the Google Sheets in your Drive</span></button></li>`,
+       $("pickLoad").onclick = () => loadList($("pickSearch").value.trim());
+}
+function closePicker() { pickerOpen = false; pendingTab = null; $("addTabRow").hidden = true; pickSay(""); renderSheet(); }
+
+const quote = s => "'" + s.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
+async function loadList(q) {
+  const seq = ++listSeq, ul = $("pickList");
+  ul.innerHTML = `<li class="empty">Loading your spreadsheets…</li>`;
+  let query = "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false";
+  if (q) query += ` and title contains ${quote(q)}`;
+  const input = { query, pageSize: 25, excludeContentSnippets: true };
+  if (!q) input.orderBy = "viewedByMeTime desc";
+  try {
+    const res = await mcp.callTool(DRIVE, "search_files", input);
+    driveGranted = true;
+    if (seq !== listSeq) return;
+    const files = ((res.payload || {}).files || []).filter(f => f && f.id && !(f.capabilities && f.capabilities.canEdit === false));
+    ul.innerHTML = "";
+    if (!files.length) { ul.innerHTML = `<li class="empty">${q ? "No spreadsheets you can edit match that name." : "No spreadsheets you can edit were found. Create a new one below."}</li>`; return; }
+    files.forEach(f => {
+      const li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.innerHTML = "<b></b><span></span>";
+      b.querySelector("b").textContent = f.title || "Untitled spreadsheet";
+      const when = (f.modifiedTime || "").slice(0, 10);
+      b.querySelector("span").textContent = (sheet && sheet.id === f.id ? "In use · " : "") + (when ? `Edited ${when}` : "");
+      if (sheet && sheet.id === f.id) b.setAttribute("aria-current", "true");
+      b.onclick = () => choose(f.id);
+      li.appendChild(b); ul.appendChild(li);
+    });
+  } catch (e) {
+    if (seq !== listSeq) return;
+    const [t] = explain(e, "read", DRIVE);
+    ul.innerHTML = `<li class="empty"></li>`;
+    ul.firstChild.textContent = `${t} You can still paste a spreadsheet's link below.`;
+  }
+}
+let searchTimer = null;
+$("pickSearch").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadList($("pickSearch").value.trim()), 350);
+});
+
+function idFrom(text) {
+  const t = (text || "").trim();
+  const m = t.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/) || t.match(/^([a-zA-Z0-9_-]{25,})$/);
+  return m ? m[1] : null;
+}
+const contentOf = res => { const p = (res && res.payload) || {}; return p.content || p; };
+const titlesOf = c => ((c && c.sheets) || []).map(s => s.properties || {});
+
+function lock(on) {
+  busy = on;
+  ["pickUrlGo", "newGo", "addTab", "pickCancel"].forEach(id => $(id).disabled = on);
+  $("pickList").querySelectorAll("button").forEach(b => b.disabled = on);
+}
+
+// Header row, total and percentage columns for a Results tab, as one batch of Sheets updates.
+function setupRequests(sheetId) {
+  const str = v => ({ userEnteredValue: { stringValue: v } });
+  const f = v => ({ userEnteredValue: { formulaValue: v } });
+  const sum = CRITERIA.map((c, i) => String.fromCharCode(69 + i) + ":" + String.fromCharCode(69 + i)).join("+");   // E:E+F:F+…
+  return [
+    { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: 0 }, fields: "userEnteredValue", rows: [{ values: [
+      ...HEADERS.map(str),
+      f(`=ARRAYFORMULA(IF(ROW(C:C)=1,"Total",IF(LEN(C:C),${sum},)))`),
+      f(`=ARRAYFORMULA(IF(ROW(C:C)=1,"Percentage",IF(LEN(C:C),K:K/${MAX_TOTAL},)))`),
+    ] }] } },
+    { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: "userEnteredFormat.textFormat.bold" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 1, startColumnIndex: 11, endColumnIndex: 12 }, cell: { userEnteredFormat: { numberFormat: { type: "PERCENT", pattern: "0.0%" } } }, fields: "userEnteredFormat.numberFormat" } },
+  ];
+}
+
+async function choose(id) {
+  if (busy) return;
+  lock(true); $("addTabRow").hidden = true; pickSay("Opening the spreadsheet…");
+  try {
+    const res = await mcp.callTool(SERVER, "get_spreadsheet", { spreadsheetId: id, fields: ["properties.title", "sheets.properties.title", "sheets.properties.sheetId"] }, { cache: false });
+    const c = contentOf(res), title = (c.properties && c.properties.title) || "Untitled spreadsheet";
+    const tabs = titlesOf(c);
+    if (tabs.some(t => t.title === TAB)) { setSheet({ id, title }); say(`Results will be saved to ${title}.`, "ok"); return; }
+    pendingTab = { id, title, ids: tabs.map(t => t.sheetId) };
+    pickSay(`${title} has no ${TAB} tab yet. The app can add one with the column headers it needs. Your other tabs aren't changed.`);
+    $("addTab").textContent = `Add a ${TAB} tab to ${title}`;
+    $("addTabRow").hidden = false;
+  } catch (e) {
+    pickSay(e && e.code === "tool_error"
+      ? "That spreadsheet couldn't be opened. Check the link, and that your Google account can edit it."
+      : explain(e, "read")[0], "bad");
+  } finally { lock(false); }
+}
+$("pickUrlGo").onclick = () => {
+  const id = idFrom($("pickUrl").value);
+  if (!id) { pickSay("Paste the spreadsheet's full link, or the long ID between /d/ and /edit in it.", "bad"); $("pickUrl").focus(); return; }
+  choose(id);
+};
+$("pickUrl").addEventListener("keydown", e => { if (e.key === "Enter") $("pickUrlGo").click(); });
+
+$("addTab").onclick = async () => {
+  if (busy || !pendingTab) return;
+  const p = pendingTab;
+  let sheetId; do { sheetId = Math.floor(Math.random() * 2e9) + 1; } while (p.ids.includes(sheetId));
+  lock(true); pickSay(`Adding a ${TAB} tab…`);
+  try {
+    await mcp.callTool(SERVER, "update_spreadsheet", { spreadsheetId: p.id, requests: [
+      { addSheet: { properties: { sheetId, title: TAB, gridProperties: { rowCount: 1000, columnCount: 12, frozenRowCount: 1 } } } },
+      ...setupRequests(sheetId),
+    ] });
+    setSheet({ id: p.id, title: p.title });
+    say(`Added a ${TAB} tab to ${p.title}. Results will be saved there.`, "ok");
+  } catch (e) {
+    pickSay(explain(e, "write")[0].replace("the row may or may not have been added", "the tab may or may not have been added"), "bad");
+  } finally { lock(false); }
+};
+
+// Drive's create_file answer carries the new file's ID; look for it in the usual places.
+function createdId(res) {
+  const p = (res && res.payload) || {};
+  const cands = [p.id, p.fileId, p.file && p.file.id, p.resourceUri, p.viewUrl, p.webViewLink, p.url, p.file && p.file.viewUrl];
+  for (const v of cands) {
+    if (typeof v !== "string") continue;
+    const m = v.match(/\/d\/([a-zA-Z0-9_-]{20,})/) || v.match(/file\/([a-zA-Z0-9_-]{20,})/) || v.match(/^([a-zA-Z0-9_-]{20,})$/);
+    if (m) return m[1];
+  }
+  const text = JSON.stringify(p).match(/"id"\s*:\s*"([a-zA-Z0-9_-]{25,})"/);
+  return text ? text[1] : null;
+}
+$("newGo").onclick = async () => {
+  if (busy) return;
+  const title = $("newName").value.trim();
+  if (!title) { pickSay("Give the new spreadsheet a name.", "bad"); $("newName").focus(); return; }
+  lock(true); pickSay(`Creating ${title} in your Google Drive…`);
+  let id = null;
+  try {
+    const res = await mcp.callTool(DRIVE, "create_file", { title, contentMimeType: "application/vnd.google-apps.spreadsheet" });
+    id = createdId(res);
+  } catch (e) {
+    const unsure = !e || !e.code || ["timeout", "server_unavailable", "upstream_error"].includes(e.code);
+    pickSay(unsure ? "Google Drive didn't answer in time, so the spreadsheet may or may not have been created. Search for it above before creating another."
+      : explain(e, "read", DRIVE)[0], "bad");
+    lock(false); return;
+  }
+  if (!id) { pickSay(`${title} was created, but its link didn't come back. Search for it above and choose it to finish setting it up.`, "bad"); lock(false); return; }
+  try {
+    pickSay("Setting up the Results tab…");
+    const meta = contentOf(await mcp.callTool(SERVER, "get_spreadsheet", { spreadsheetId: id, fields: ["sheets.properties.sheetId"] }, { cache: false }));
+    const first = titlesOf(meta)[0] || { sheetId: 0 };
+    const sheetId = first.sheetId || 0;
+    await mcp.callTool(SERVER, "update_spreadsheet", { spreadsheetId: id, requests: [
+      { updateSheetProperties: { properties: { sheetId, title: TAB, gridProperties: { frozenRowCount: 1 } }, fields: "title,gridProperties.frozenRowCount" } },
+      ...setupRequests(sheetId),
+    ] });
+    setSheet({ id, title });
+    say(`Created ${title}. Results will be saved there.`, "ok");
+  } catch (e) {
+    // The file exists but isn't set up; choosing it again offers to add the Results tab.
+    pickSay(`${title} was created, but its ${TAB} tab couldn't be set up. ${explain(e, "read")[0]} Search for it above and choose it to finish.`, "bad");
+  } finally { lock(false); }
+};
+$("newName").addEventListener("keydown", e => { if (e.key === "Enter") $("newGo").click(); });
+
+$("sheetChange").onclick = openPicker;
+$("pickCancel").onclick = closePicker;
+
 /* Candidates saved on this device by the earlier version of this page */
 function showLegacy() {
   const old = store.get("c1-saved", []).filter(r => r && r.cand && CRITERIA.every(c => r.scores && r.scores[c.id] !== undefined));
-  $("legacyRow").hidden = !old.length || !mcp;
+  $("legacyRow").hidden = !old.length || !mcp || !sheet;
   $("legacy").textContent = `Add ${old.length} ${old.length === 1 ? "candidate" : "candidates"} saved on this device to the sheet`;
   return old;
 }
 $("legacy").onclick = async () => {
-  const old = showLegacy(); if (!old.length) return;
+  const old = showLegacy(); if (!old.length || !sheet) return;
   const btn = $("legacy"); btn.disabled = true; btn.textContent = "Adding…";
   try {
-    await mcp.callTool(SERVER, "append_values", { spreadsheetId: SHEET_ID, range: "Results!A:J", values: old.map(r => rowFor(r, (r.date || today()) + " 00:00")) });
+    await mcp.callTool(SERVER, "append_values", { spreadsheetId: sheet.id, range: `${TAB}!A:J`, values: old.map(r => rowFor(r, (r.date || today()) + " 00:00")) });
     store.del("c1-saved");
     say(`Added ${old.length} saved ${old.length === 1 ? "candidate" : "candidates"} to the sheet.`, "ok");
     readSaved(true);
@@ -456,17 +713,26 @@ load(store.get("c1-draft", { date: today() }));
 renderSaved([]);
 $("saved").innerHTML = `<li><span class="who"><span>Tap Show saved results to see what's in your sheet.</span></span></li>`;
 
+renderSheet();
+
 (async () => {
   try { mcp = await window.claude?.use?.("mcp"); } catch { mcp = null; }
+  renderSheet();
   if (!mcp) {
-    $("refresh").hidden = true;
     $("saved").innerHTML = `<li><span class="who"><span>Saving to Google Sheets works when this page is open on claude.ai. You can still copy the results.</span></span></li>`;
     return;
   }
   showLegacy();
   let state = "prompt";
-  try { const perms = await window.claude.use("permissions"); if (perms) state = await perms.state("mcp:" + SERVER).catch(() => "prompt"); } catch {}
-  if (state === "granted") readSaved(false);
+  try {
+    const perms = await window.claude.use("permissions");
+    if (perms) {
+      state = await perms.state("mcp:" + SERVER).catch(() => "prompt");
+      driveGranted = (await perms.state("mcp:" + DRIVE).catch(() => "prompt")) === "granted";
+    }
+  } catch {}
+  if (!sheet) openPicker();
+  else if (state === "granted") readSaved(false);
 })();
 </script>
 
