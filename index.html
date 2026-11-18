@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>C1 Speaking Scorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+</style>
+<style>
+/* Layout: single phone-width column of criterion cards, with a sticky score bar at the bottom of the screen */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --ink: #18202f;
+  --muted: #5d6779;
+  --line: #d8dee8;
+  --accent: #2c55c9;
+  --accent-soft: #e4ebfb;
+  --pick: #0f7a5c;
+  --pick-soft: #ddf3ea;
+  --warn: #b4531a;
+  --warn-soft: #fbeadf;
+  --bar: #18202f;
+  --bar-fg: #ffffff;
+  --display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141c; --surface: #1a202b; --ink: #e8ecf3; --muted: #9aa4b6; --line: #2c3442;
+    --accent: #7d9cf0; --accent-soft: #232f4a; --pick: #4fcf9f; --pick-soft: #173a30; --warn: #f0a46c; --warn-soft: #3a2618;
+    --bar: #e8ecf3; --bar-fg: #10141c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141c; --surface: #1a202b; --ink: #e8ecf3; --muted: #9aa4b6; --line: #2c3442;
+  --accent: #7d9cf0; --accent-soft: #232f4a; --pick: #4fcf9f; --pick-soft: #173a30; --warn: #f0a46c; --warn-soft: #3a2618;
+  --bar: #e8ecf3; --bar-fg: #10141c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45;
+}
+.wrap {
+  max-width: 640px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 140px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+header h1 { font-family: var(--display); font-size: 1.45rem; font-weight: 700; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); font-size: 0.88rem; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fields .full { grid-column: 1 / -1; }
+label.f { display: flex; flex-direction: column; gap: 4px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+input, textarea {
+  font: inherit; font-size: 16px; text-transform: none; letter-spacing: normal; font-weight: 400;
+  color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; min-width: 0;
+}
+textarea { min-height: 96px; resize: vertical; }
+input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.crit { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.crit-head {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.crit-head .name { flex: 1; min-width: 0; }
+.crit-head .name b { display: block; font-family: var(--display); font-weight: 600; font-size: 1.02rem; }
+.crit-head .name span { display: block; font-size: 0.82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge {
+  flex: none; width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
+  font-family: var(--display); font-weight: 700; font-size: 1.3rem; background: var(--bg); color: var(--muted); border: 1px dashed var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.crit.done .badge { background: var(--pick); color: var(--surface); border: 0; }
+.chev { flex: none; width: 18px; height: 18px; color: var(--muted); transition: transform .2s; }
+.crit.open .chev { transform: rotate(180deg); }
+.bands { display: none; flex-direction: column; gap: 6px; padding: 0 10px 12px; }
+.crit.open .bands { display: flex; }
+.band {
+  display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; font: inherit; color: inherit;
+  background: var(--bg); border: 1.5px solid transparent; border-radius: 11px; padding: 11px 12px; cursor: pointer;
+}
+.band .n { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-family: var(--display); font-weight: 700; background: var(--surface); color: var(--accent); border: 1px solid var(--line); }
+.band .d { font-size: 0.9rem; min-width: 0; }
+.band.between .d { color: var(--muted); font-style: italic; }
+.band:hover { border-color: var(--line); }
+.band[aria-pressed="true"] { background: var(--pick-soft); border-color: var(--pick); }
+.band[aria-pressed="true"] .n { background: var(--pick); color: var(--surface); border-color: var(--pick); }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font: inherit; font-weight: 600; font-size: 0.92rem; padding: 11px 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); flex: 1 1 auto;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.danger { color: var(--warn); }
+.btn[disabled] { opacity: .55; cursor: default; }
+.note { font-size: 0.8rem; color: var(--muted); margin: 0; }
+.msg { font-size: 0.88rem; margin: 0; padding: 10px 12px; border-radius: 10px; }
+.msg.ok { color: var(--pick); background: var(--pick-soft); }
+.msg.bad { color: var(--warn); background: var(--warn-soft); }
+.msg.info { color: var(--muted); background: var(--surface); border: 1px solid var(--line); }
+
+.sheet-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
+.sheet-head a { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+.saved { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; }
+.saved li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.saved li:first-child { border-top: 0; }
+.saved .who { flex: 1; min-width: 0; }
+.saved .who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved .who span { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.saved .pct { font-family: var(--display); font-weight: 700; font-variant-numeric: tabular-nums; }
+.mini { font: inherit; font-size: 0.85rem; font-weight: 600; padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+
+.scorebar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  background: var(--bar); color: var(--bar-fg);
+  padding-top: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.scorebar .in { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+.dots { display: flex; gap: 5px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid currentColor; opacity: .55; }
+.dots i.on { background: currentColor; opacity: 1; }
+.sb-mid { flex: 1; min-width: 0; font-size: 0.8rem; opacity: .8; }
+.sb-mid b { display: block; font-size: 0.95rem; opacity: 1; font-variant-numeric: tabular-nums; }
+.pctbig { font-family: var(--display); font-weight: 700; font-size: 1.7rem; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>C1 Advanced Speaking</h1>
+    <p>Tap the band descriptor that best matches the candidate for each criterion. The score updates as you go.</p>
+  </header>
+
+  <section class="panel fields" aria-label="Candidate details">
+    <label class="f full">Candidate<input id="cand" autocomplete="off" placeholder="Full name"></label>
+    <label class="f">Date<input id="date" type="date"></label>
+    <label class="f">Examiner<input id="exam" autocomplete="off"></label>
+  </section>
+
+  <div id="crits" style="display:flex;flex-direction:column;gap:10px"></div>
+
+  <section class="panel" aria-label="Comments">
+    <label class="f">Comments<textarea id="comm" placeholder="Strengths, areas to work on"></textarea></label>
+  </section>
+
+  <div class="row">
+    <button class="btn primary" id="save" type="button">Save to Google Sheet</button>
+    <button class="btn" id="copy" type="button">Copy results</button>
+    <button class="btn danger" id="reset" type="button">New candidate</button>
+  </div>
+  <p class="msg" id="msg" role="status" hidden></p>
+  <textarea id="copyfall" hidden readonly></textarea>
+
+  <section class="panel" aria-label="Results in your Google Sheet">
+    <div class="sheet-head">
+      <h2>Saved in your sheet</h2>
+      <a id="sheetLink" target="_blank" rel="noopener">Open the sheet</a>
+    </div>
+    <ul class="saved" id="saved"></ul>
+    <div class="row" id="legacyRow" hidden>
+      <button class="btn" id="legacy" type="button"></button>
+    </div>
+    <div class="row"><button class="mini" id="refresh" type="button">Show saved results</button></div>
+  </section>
+</div>
+
+<div class="scorebar" aria-live="polite">
+  <div class="in">
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="sb-mid"><b id="tot">0 / 25</b><span id="left">5 criteria to score</span></div>
+    <div class="pctbig" id="pct">–</div>
+  </div>
+</div>
+
+<script>
+// Paste the ID of your own Google Sheet here (the long string between /d/ and /edit in the sheet's URL).
+// The sheet needs a tab named "Results". See README.md.
+const SHEET_ID = "YOUR_SHEET_ID_HERE";
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+const SERVER = "Google Sheets";
+const BETWEEN = (a,b) => `Performance shares features of Bands ${a} and ${b}.`;
+const CRITERIA = [
+  { id: "gr", name: "Grammatical Resource", d: {
+    1: "Shows a good degree of control of simple grammatical forms, and attempts some complex grammatical forms.",
+    3: "Shows a good degree of control of a range of simple and some complex grammatical forms.",
+    5: "Maintains control of a wide range of grammatical forms." } },
+  { id: "lr", name: "Lexical Resource", d: {
+    1: "Uses appropriate vocabulary to give and exchange views, but only when discussing familiar topics.",
+    3: "Uses a range of appropriate vocabulary to give and exchange views on familiar and unfamiliar topics.",
+    5: "Uses a wide range of appropriate vocabulary with flexibility to give and exchange views on unfamiliar and abstract topics." } },
+  { id: "dm", name: "Discourse Management", d: {
+    1: "Produces extended stretches of language with very little hesitation. Contributions are relevant and there is a clear organisation of ideas. Uses a range of cohesive devices and discourse markers.",
+    3: "Produces extended stretches of language with ease and with very little hesitation. Contributions are relevant, coherent and varied. Uses a wide range of cohesive devices and discourse markers.",
+    5: "Produces extended stretches of language with ease and with very little hesitation. Contributions are relevant, coherent, varied and detailed. Makes full and effective use of a wide range of cohesive devices and discourse markers." } },
+  { id: "pr", name: "Pronunciation", d: {
+    1: "Is intelligible. Intonation is generally appropriate. Sentence and word stress is generally accurately placed. Individual sounds are generally articulated clearly.",
+    3: "Is intelligible. Intonation is appropriate. Sentence and word stress is accurately placed. Individual sounds are articulated clearly.",
+    5: "Is intelligible. Phonological features are used effectively to convey and enhance meaning." } },
+  { id: "ic", name: "Interactive Communication", d: {
+    1: "Initiates and responds appropriately. Maintains and develops the interaction and negotiates towards an outcome with very little support.",
+    3: "Initiates and responds appropriately, linking contributions to those of other speakers. Maintains and develops the interaction and negotiates towards an outcome.",
+    5: "Interacts with ease by skilfully linking contributions to those of other speakers. Widens the scope of the interaction and negotiates towards an outcome." } },
+];
+const MAX_BAND = 5;
+const MAX_TOTAL = MAX_BAND * CRITERIA.length;
+function descriptor(c, b) {
+  if (b === 0) return "Performance below Band 1.";
+  if (b === 2) return BETWEEN(1,3);
+  if (b === 4) return BETWEEN(3,5);
+  return c.d[b];
+}
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, f) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} }
+};
+let scores = {};
+let openId = CRITERIA[0].id;
+const pad = n => String(n).padStart(2, "0");
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const stamp = () => { const d = new Date(); return `${today()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+
+$("sheetLink").href = SHEET_URL;
+
+function buildCriteria() {
+  const host = $("crits");
+  host.innerHTML = "";
+  CRITERIA.forEach(c => {
+    const card = document.createElement("section");
+    card.className = "crit"; card.id = "c-" + c.id;
+    card.innerHTML = `
+      <button class="crit-head" type="button" aria-expanded="false" aria-controls="b-${c.id}">
+        <span class="badge"></span>
+        <span class="name"><b>${c.name}</b><span class="sum"></span></span>
+        <svg class="chev" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
+      <div class="bands" id="b-${c.id}" role="group" aria-label="${c.name} bands"></div>`;
+    const bands = card.querySelector(".bands");
+    for (let b = MAX_BAND; b >= 0; b--) {
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.className = "band" + (b % 2 === 0 ? " between" : "");
+      btn.dataset.band = b; btn.setAttribute("aria-pressed", "false");
+      btn.innerHTML = `<span class="n">${b}</span><span class="d">${descriptor(c, b)}</span>`;
+      btn.addEventListener("click", () => pick(c.id, b));
+      bands.appendChild(btn);
+    }
+    card.querySelector(".crit-head").addEventListener("click", () => {
+      openId = openId === c.id ? null : c.id; render();
+    });
+    host.appendChild(card);
+  });
+}
+
+function pick(id, b) {
+  scores[id] = scores[id] === b ? undefined : b;
+  if (scores[id] === undefined) delete scores[id];
+  if (scores[id] !== undefined) {
+    const next = CRITERIA.find(c => scores[c.id] === undefined);
+    openId = next ? next.id : null;
+  }
+  render(); saveDraft();
+  if (openId) {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    $("c-" + openId).scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }
+}
+
+function totals() {
+  const vals = CRITERIA.map(c => scores[c.id]).filter(v => v !== undefined);
+  const total = vals.reduce((a,b) => a + b, 0);
+  return { done: vals.length, total, pct: vals.length === CRITERIA.length ? total / MAX_TOTAL : null };
+}
+const fmtPct = p => (p * 100).toFixed(1) + "%";
+
+function render() {
+  CRITERIA.forEach(c => {
+    const card = $("c-" + c.id), s = scores[c.id];
+    card.classList.toggle("done", s !== undefined);
+    card.classList.toggle("open", openId === c.id);
+    card.querySelector(".crit-head").setAttribute("aria-expanded", openId === c.id);
+    card.querySelector(".badge").textContent = s === undefined ? "–" : s;
+    card.querySelector(".sum").textContent = s === undefined ? "Tap to choose a band" : descriptor(c, s);
+    card.querySelectorAll(".band").forEach(btn => btn.setAttribute("aria-pressed", String(+btn.dataset.band === s)));
+  });
+  const t = totals();
+  $("dots").innerHTML = CRITERIA.map(c => `<i class="${scores[c.id] !== undefined ? "on" : ""}"></i>`).join("");
+  $("tot").textContent = `${t.total} / ${MAX_TOTAL}`;
+  const left = CRITERIA.length - t.done;
+  $("left").textContent = left ? `${left} ${left === 1 ? "criterion" : "criteria"} to score` : "All criteria scored";
+  $("pct").textContent = t.pct === null ? "–" : fmtPct(t.pct);
+}
+
+function current() {
+  return { cand: $("cand").value.trim(), date: $("date").value, exam: $("exam").value.trim(), comm: $("comm").value.trim(), scores: { ...scores } };
+}
+function load(r) {
+  $("cand").value = r.cand || ""; $("date").value = r.date || today(); $("exam").value = r.exam || ""; $("comm").value = r.comm || "";
+  scores = { ...(r.scores || {}) };
+  openId = (CRITERIA.find(c => scores[c.id] === undefined) || {}).id || null;
+  render();
+}
+function saveDraft() { store.set("c1-draft", current()); }
+["cand","date","exam","comm"].forEach(id => $(id).addEventListener("input", saveDraft));
+
+function say(text, kind = "info") {
+  const m = $("msg"); m.textContent = text; m.className = "msg " + kind; m.hidden = !text;
+}
+
+function summary(r) {
+  const vals = CRITERIA.map(c => r.scores[c.id]);
+  const total = vals.reduce((a,b) => a + (b ?? 0), 0);
+  const complete = vals.every(v => v !== undefined);
+  return [
+    `C1 Advanced Speaking: ${r.cand || "Unnamed candidate"}`,
+    r.date ? `Date: ${r.date}` : null,
+    r.exam ? `Examiner: ${r.exam}` : null,
+    ...CRITERIA.map(c => `${c.name}: ${r.scores[c.id] ?? "not scored"}`),
+    `Total: ${total} / ${MAX_TOTAL}` + (complete ? ` (${fmtPct(total / MAX_TOTAL)})` : " (incomplete)"),
+    r.comm ? `Comments: ${r.comm}` : null,
+  ].filter(Boolean).join("\n");
+}
+
+/* ---------- Google Sheets ---------- */
+let mcp = null;
+const sheetText = s => "'" + (s || "");   // leading apostrophe keeps typed text as plain text in Sheets
+function rowFor(r, savedAt) {
+  return [savedAt || stamp(), r.date || today(), sheetText(r.cand), sheetText(r.exam),
+    ...CRITERIA.map(c => r.scores[c.id]), sheetText(r.comm)];
+}
+function explain(err, action) {
+  const code = err && err.code;
+  switch (code) {
+    case "needs_reauth": return ["Google Sheets needs to be reconnected. Reconnect it in claude.ai Settings, Connectors, then try again.", "bad"];
+    case "server_not_connected":
+    case "selection_required":
+    case "server_not_found": return ["Google Sheets isn't connected to your Claude account. Add it in claude.ai Settings, Connectors, then try again.", "bad"];
+    case "not_in_manifest":
+    case "approval_required": return ["This page needs your permission to use Google Sheets. Tap the button again and choose Allow.", "bad"];
+    case "blocked_by_policy": return ["Your organisation's settings block this page from using Google Sheets.", "bad"];
+    case "not_granted":
+    case "capability_disabled":
+    case "capability_removed": return ["Google Sheets can't be reached from this view. Open the page on claude.ai to save to your sheet.", "bad"];
+    case "tool_error": return [`Google Sheets reported a problem: ${err.message || "unknown error"}.`, "bad"];
+    default:
+      return action === "write"
+        ? ["Google Sheets didn't answer in time, so the row may or may not have been added. Check the list below before saving again.", "bad"]
+        : ["Google Sheets didn't answer. Try again in a moment.", "bad"];
+  }
+}
+
+async function readSaved(fresh) {
+  if (!mcp) return;
+  const btn = $("refresh");
+  btn.disabled = true; btn.textContent = "Loading…";
+  try {
+    const res = await mcp.callTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: "Results!A2:L" }, fresh ? { cache: { refresh: true } } : undefined);
+    const p = res.payload || {};
+    renderSaved(Array.isArray(p.values) ? p.values : []);
+    btn.textContent = "Refresh";
+  } catch (e) {
+    const [t, k] = explain(e, "read"); say(t, k);
+    btn.textContent = "Show saved results";
+  } finally { btn.disabled = false; }
+}
+
+function renderSaved(rows) {
+  const ul = $("saved"); ul.innerHTML = "";
+  const list = rows.filter(r => r && r[2]).reverse().slice(0, 15);
+  if (!list.length) { ul.innerHTML = `<li><span class="who"><span>No results in the sheet yet. Score a candidate, then tap Save to Google Sheet.</span></span></li>`; return; }
+  list.forEach(r => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="who"><b></b><span></span></span><span class="pct"></span>`;
+    li.querySelector("b").textContent = r[2];
+    li.querySelector(".who span").textContent = `${r[1] || ""} · ${[4,5,6,7,8].map(i => r[i] ?? "–").join(" ")}`;
+    li.querySelector(".pct").textContent = r[11] || (r[10] ? `${r[10]}/${MAX_TOTAL}` : "");
+    ul.appendChild(li);
+  });
+}
+
+let saving = false;
+$("save").onclick = async () => {
+  if (saving) return;
+  const r = current();
+  if (!r.cand) { say("Add the candidate's name before saving.", "bad"); $("cand").focus(); return; }
+  const missing = CRITERIA.filter(c => r.scores[c.id] === undefined);
+  if (missing.length) { say(`Score all five criteria before saving. Still to score: ${missing.map(c => c.name).join(", ")}.`, "bad"); return; }
+  if (!mcp) { say(explain({ code: "not_granted" })[0], "bad"); return; }
+  saving = true; const btn = $("save"); btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    await mcp.callTool(SERVER, "append_values", { spreadsheetId: SHEET_ID, range: "Results!A:J", values: [rowFor(r)] });
+    say(`Saved ${r.cand} to the Results tab.`, "ok");
+    readSaved(true);
+  } catch (e) {
+    const [t, k] = explain(e, "write"); say(t, k);
+    if (e && (e.code === "server_unavailable" || e.code === "upstream_error")) readSaved(true);
+  } finally {
+    saving = false; btn.disabled = false; btn.textContent = "Save to Google Sheet";
+  }
+};
+$("refresh").onclick = () => readSaved(true);
+
+/* Candidates saved on this device by the earlier version of this page */
+function showLegacy() {
+  const old = store.get("c1-saved", []).filter(r => r && r.cand && CRITERIA.every(c => r.scores && r.scores[c.id] !== undefined));
+  $("legacyRow").hidden = !old.length || !mcp;
+  $("legacy").textContent = `Add ${old.length} ${old.length === 1 ? "candidate" : "candidates"} saved on this device to the sheet`;
+  return old;
+}
+$("legacy").onclick = async () => {
+  const old = showLegacy(); if (!old.length) return;
+  const btn = $("legacy"); btn.disabled = true; btn.textContent = "Adding…";
+  try {
+    await mcp.callTool(SERVER, "append_values", { spreadsheetId: SHEET_ID, range: "Results!A:J", values: old.map(r => rowFor(r, (r.date || today()) + " 00:00")) });
+    store.del("c1-saved");
+    say(`Added ${old.length} saved ${old.length === 1 ? "candidate" : "candidates"} to the sheet.`, "ok");
+    readSaved(true);
+  } catch (e) {
+    const [t, k] = explain(e, "write"); say(t, k);
+  } finally { btn.disabled = false; showLegacy(); }
+};
+
+$("copy").onclick = () => {
+  const text = summary(current());
+  const fall = () => { const t = $("copyfall"); t.value = text; t.hidden = false; t.select(); say("Select the text below and copy it."); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => say("Results copied.", "ok"), fall);
+  else fall();
+};
+const resetBtn = $("reset");
+resetBtn.onclick = () => {
+  if (!resetBtn.dataset.c) { resetBtn.dataset.c = "1"; resetBtn.textContent = "Tap again to clear"; setTimeout(() => { delete resetBtn.dataset.c; resetBtn.textContent = "New candidate"; }, 3000); return; }
+  delete resetBtn.dataset.c; resetBtn.textContent = "New candidate";
+  const exam = $("exam").value;
+  load({ exam, date: today() }); $("copyfall").hidden = true; saveDraft(); say(""); window.scrollTo({ top: 0 });
+};
+
+buildCriteria();
+load(store.get("c1-draft", { date: today() }));
+renderSaved([]);
+$("saved").innerHTML = `<li><span class="who"><span>Tap Show saved results to see what's in your sheet.</span></span></li>`;
+
+(async () => {
+  try { mcp = await window.claude?.use?.("mcp"); } catch { mcp = null; }
+  if (!mcp) {
+    $("refresh").hidden = true;
+    $("saved").innerHTML = `<li><span class="who"><span>Saving to Google Sheets works when this page is open on claude.ai. You can still copy the results.</span></span></li>`;
+    return;
+  }
+  showLegacy();
+  let state = "prompt";
+  try { const perms = await window.claude.use("permissions"); if (perms) state = await perms.state("mcp:" + SERVER).catch(() => "prompt"); } catch {}
+  if (state === "granted") readSaved(false);
+})();
+</script>
+
+</body>
+</html>
