@@ -119,6 +119,23 @@ h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
 .saved .who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .saved .who span { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .saved .pct { font-family: var(--display); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pick-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.pick-list button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--bg); border: 1.5px solid transparent; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.pick-list button:hover { border-color: var(--line); }
+.pick-list button[aria-current="true"] { border-color: var(--pick); background: var(--pick-soft); }
+.pick-list b { font-weight: 600; overflow-wrap: anywhere; }
+.pick-list span { font-size: 0.8rem; color: var(--muted); }
+.pick-list li.empty { font-size: 0.85rem; color: var(--muted); padding: 6px 2px; }
+.picker { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.picker h3 { font-family: var(--display); font-size: 0.92rem; margin: 0 0 6px; }
+.inline { display: flex; gap: 8px; }
+.inline input { flex: 1; }
+.inline .btn { flex: none; }
+.cur { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cur .who { flex: 1; min-width: 0; }
+.cur .who b { display: block; overflow-wrap: anywhere; }
+.cur .who span { font-size: 0.8rem; color: var(--muted); }
+a.mini { text-decoration: none; }
 .mini { font: inherit; font-size: 0.85rem; font-weight: 600; padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 
 .scorebar {
@@ -147,6 +164,46 @@ h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
     <p>Tap the band descriptor that best matches the candidate for each criterion. The score updates as you go.</p>
   </header>
 
+  <section class="panel" id="sheetPanel" aria-label="Where results are saved">
+    <div class="cur">
+      <span class="who"><b id="sheetName">No spreadsheet chosen</b><span id="sheetSub">Choose where results are saved.</span></span>
+      <a class="mini" id="sheetOpen" target="_blank" rel="noopener" hidden>Open</a>
+      <button class="mini" id="sheetDownload" type="button" hidden>Download</button>
+      <button class="mini" id="sheetChange" type="button">Choose</button>
+    </div>
+    <div class="picker" id="picker" hidden>
+      <div id="gPick">
+        <h3>Use a Google Sheet</h3>
+        <div id="gList">
+          <input id="pickSearch" type="search" placeholder="Search your spreadsheets by name" autocomplete="off" aria-label="Search your spreadsheets">
+          <ul class="pick-list" id="pickList"></ul>
+          <div class="inline" style="margin-top:8px">
+            <input id="pickUrl" placeholder="Or paste a spreadsheet link" autocomplete="off" aria-label="Spreadsheet link or ID">
+            <button class="btn" id="pickUrlGo" type="button">Use</button>
+          </div>
+        </div>
+        <div class="row" id="gWeb" hidden><button class="btn" id="gPicker" type="button">Choose from Google Drive</button></div>
+        <div class="inline" style="margin-top:8px">
+          <input id="newName" value="C1 Speaking Results" autocomplete="off" aria-label="New spreadsheet name">
+          <button class="btn" id="newGo" type="button">Create new</button>
+        </div>
+        <p class="note" style="margin-top:6px">A new spreadsheet comes with a Results tab, column headers, and total and percentage columns.</p>
+      </div>
+      <div id="xPick">
+        <h3 id="xHead">Use an Excel file (.xlsx)</h3>
+        <div class="row">
+          <button class="btn" id="xOpen" type="button">Open an .xlsx file</button>
+          <button class="btn" id="xNew" type="button">Create a new .xlsx</button>
+        </div>
+        <p class="note" id="xNote" style="margin-top:6px"></p>
+        <input type="file" id="xFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      </div>
+      <p class="msg" id="pickMsg" role="status" hidden></p>
+      <div class="row" id="addTabRow" hidden><button class="btn primary" id="addTab" type="button"></button></div>
+      <div class="row" id="pickCancelRow"><button class="btn" id="pickCancel" type="button">Cancel</button></div>
+    </div>
+  </section>
+
   <section class="panel fields" aria-label="Candidate details">
     <label class="f full">Candidate<input id="cand" autocomplete="off" placeholder="Full name"></label>
     <label class="f">Date<input id="date" type="date"></label>
@@ -160,17 +217,16 @@ h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
   </section>
 
   <div class="row">
-    <button class="btn primary" id="save" type="button">Save to Google Sheet</button>
+    <button class="btn primary" id="save" type="button">Save result</button>
     <button class="btn" id="copy" type="button">Copy results</button>
     <button class="btn danger" id="reset" type="button">New candidate</button>
   </div>
   <p class="msg" id="msg" role="status" hidden></p>
   <textarea id="copyfall" hidden readonly></textarea>
 
-  <section class="panel" aria-label="Results in your Google Sheet">
+  <section class="panel" aria-label="Saved results">
     <div class="sheet-head">
-      <h2>Saved in your sheet</h2>
-      <a id="sheetLink" target="_blank" rel="noopener">Open the sheet</a>
+      <h2>Saved results</h2>
     </div>
     <ul class="saved" id="saved"></ul>
     <div class="row" id="legacyRow" hidden>
@@ -189,11 +245,18 @@ h2 { font-family: var(--display); font-size: 1.05rem; margin: 0; }
 </div>
 
 <script>
-// Paste the ID of your own Google Sheet here (the long string between /d/ and /edit in the sheet's URL).
-// The sheet needs a tab named "Results". See README.md.
-const SHEET_ID = "YOUR_SHEET_ID_HERE";
-const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+// Where results go is chosen in the page (a Google Sheet or an Excel file) and remembered in this browser.
+// For the website version, fill in GOOGLE so people can sign in with Google. See README.md, "Google sign-in setup".
+// These values are public by design (Google limits them to your website's address); they are not passwords.
+const GOOGLE = {
+  clientId: "",   // OAuth client ID, ends in .apps.googleusercontent.com
+  apiKey: "",     // API key, used by Google's file picker
+  appId: "",      // Google Cloud project number
+};
 const SERVER = "Google Sheets";
+const DRIVE = "Google Drive";
+const TAB = "Results";
+const SHEET_KEY = "c1-sheet";
 const BETWEEN = (a,b) => `Performance shares features of Bands ${a} and ${b}.`;
 const CRITERIA = [
   { id: "gr", name: "Grammatical Resource", d: {
@@ -219,6 +282,7 @@ const CRITERIA = [
 ];
 const MAX_BAND = 5;
 const MAX_TOTAL = MAX_BAND * CRITERIA.length;
+const HEADERS = ["Saved at", "Date", "Candidate", "Examiner", ...CRITERIA.map(c => c.name), "Comments"];
 function descriptor(c, b) {
   if (b === 0) return "Performance below Band 1.";
   if (b === 2) return BETWEEN(1,3);
@@ -238,7 +302,10 @@ const pad = n => String(n).padStart(2, "0");
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
 const stamp = () => { const d = new Date(); return `${today()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 
-$("sheetLink").href = SHEET_URL;
+const sheetUrl = id => `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit`;
+let sheet = (s => !s ? null
+  : s.kind === "xlsx" ? s
+  : typeof s.id === "string" && s.id ? { kind: "gsheet", id: s.id, title: s.title } : null)(store.get(SHEET_KEY, null));
 
 function buildCriteria() {
   const host = $("crits");
@@ -338,53 +405,335 @@ function summary(r) {
   ].filter(Boolean).join("\n");
 }
 
-/* ---------- Google Sheets ---------- */
-let mcp = null;
-const sheetText = s => "'" + (s || "");   // leading apostrophe keeps typed text as plain text in Sheets
+/* ---------- Where results are saved ----------
+   sheet = { kind: "gsheet", id, title }  a Google Sheet, reached through
+             - Claude's Google connectors when the page runs as a Claude artifact, or
+             - the viewer's own Google sign-in when the page is a website (GOOGLE settings above)
+         | { kind: "xlsx", title, mode: "file" | "browser" }  an Excel workbook, either
+             - a file on this device the page saves straight into (Chrome and Edge), or
+             - a copy kept in this browser that the viewer downloads
+   The choice is remembered in localStorage; Excel files and handles live in IndexedDB. */
+let mcp = null;          // Claude connectors (artifact)
+let gWeb = false;        // Google sign-in (website)
+const googleOn = () => !!mcp || gWeb;
+const TEXT_COLS = [2, 3, 9];   // candidate, examiner, comments
 function rowFor(r, savedAt) {
-  return [savedAt || stamp(), r.date || today(), sheetText(r.cand), sheetText(r.exam),
-    ...CRITERIA.map(c => r.scores[c.id]), sheetText(r.comm)];
+  return [savedAt || stamp(), r.date || today(), r.cand || "", r.exam || "", ...CRITERIA.map(c => r.scores[c.id]), r.comm || ""];
 }
-function explain(err, action) {
+// leading apostrophe keeps typed text as plain text in Google Sheets
+const forSheets = row => row.map((v, i) => TEXT_COLS.includes(i) ? "'" + (v || "") : v);
+
+function explain(err, action, name = "Google Sheets") {
   const code = err && err.code;
   switch (code) {
-    case "needs_reauth": return ["Google Sheets needs to be reconnected. Reconnect it in claude.ai Settings, Connectors, then try again.", "bad"];
+    case "needs_reauth": return [`${name} needs to be reconnected. Reconnect it in claude.ai Settings, Connectors, then try again.`, "bad"];
     case "server_not_connected":
     case "selection_required":
-    case "server_not_found": return ["Google Sheets isn't connected to your Claude account. Add it in claude.ai Settings, Connectors, then try again.", "bad"];
+    case "server_not_found": return [`${name} isn't connected to your Claude account. Add it in claude.ai Settings, Connectors, then try again.`, "bad"];
     case "not_in_manifest":
-    case "approval_required": return ["This page needs your permission to use Google Sheets. Tap the button again and choose Allow.", "bad"];
-    case "blocked_by_policy": return ["Your organisation's settings block this page from using Google Sheets.", "bad"];
+    case "approval_required": return [`This page needs your permission to use ${name}. Tap the button again and choose Allow.`, "bad"];
+    case "blocked_by_policy": return [`Your organisation's settings block this page from using ${name}.`, "bad"];
     case "not_granted":
     case "capability_disabled":
-    case "capability_removed": return ["Google Sheets can't be reached from this view. Open the page on claude.ai to save to your sheet.", "bad"];
-    case "tool_error": return [`Google Sheets reported a problem: ${err.message || "unknown error"}.`, "bad"];
+    case "capability_removed": return [`${name} can't be reached from this view.`, "bad"];
+    case "tool_error": return [`${name} reported a problem: ${err.message || "unknown error"}.`, "bad"];
+    case "signin_cancelled": return ["Google sign-in was closed before it finished. Try again and allow access.", "bad"];
+    case "signin_failed": return ["Google sign-in didn't work. Check that pop-ups are allowed for this page, then try again.", "bad"];
+    case "no_access": return ["This page can't open that spreadsheet. Choose it again with Choose from Google Drive.", "bad"];
+    case "google_error": return [`Google reported a problem: ${err.message || "unknown error"}.`, "bad"];
+    case "xlsx_lib": return ["The Excel tools didn't load. Check your internet connection and try again.", "bad"];
+    case "xlsx_read": return ["That file couldn't be read as an Excel workbook (.xlsx).", "bad"];
+    case "xlsx_perm": return ["The page needs your permission to save into the Excel file. Try again and choose Allow (or Edit file).", "bad"];
+    case "xlsx_write": return ["The Excel file couldn't be saved. If it's open in Excel, close it there and try again.", "bad"];
+    case "xlsx_gone": return ["The Excel file couldn't be found. It may have been moved or deleted. Choose it again.", "bad"];
     default:
       return action === "write"
-        ? ["Google Sheets didn't answer in time, so the row may or may not have been added. Check the list below before saving again.", "bad"]
-        : ["Google Sheets didn't answer. Try again in a moment.", "bad"];
+        ? [`${name} didn't answer in time, so the row may or may not have been added. Check the list below before saving again.`, "bad"]
+        : [`${name} didn't answer. Try again in a moment.`, "bad"];
   }
 }
+const nameFor = () => sheet && sheet.kind === "xlsx" ? "Excel" : "Google Sheets";
 
-async function readSaved(fresh) {
-  if (!mcp) return;
-  const btn = $("refresh");
+/* ---------- Google Sheets: one interface, two ways in ---------- */
+const contentOf = res => { const p = (res && res.payload) || {}; return p.content || p; };
+const G = {
+  async meta(id) {
+    if (mcp) {
+      const c = contentOf(await mcp.callTool(SERVER, "get_spreadsheet", { spreadsheetId: id, fields: ["properties.title", "sheets.properties.title", "sheets.properties.sheetId"] }, { cache: false }));
+      return { title: (c.properties && c.properties.title) || "Untitled spreadsheet", tabs: ((c.sheets) || []).map(s => s.properties || {}) };
+    }
+    const c = await web.api("GET", `${encodeURIComponent(id)}?fields=properties.title,sheets.properties(sheetId,title)`);
+    return { title: (c.properties && c.properties.title) || "Untitled spreadsheet", tabs: (c.sheets || []).map(s => s.properties || {}) };
+  },
+  async batch(id, requests) {
+    if (mcp) return mcp.callTool(SERVER, "update_spreadsheet", { spreadsheetId: id, requests });
+    return web.api("POST", `${encodeURIComponent(id)}:batchUpdate`, { requests });
+  },
+  async values(id, range, fresh) {
+    if (mcp) {
+      const res = await mcp.callTool(SERVER, "get_values", { spreadsheetId: id, range }, fresh ? { cache: { refresh: true } } : undefined);
+      const p = res.payload || {}; return Array.isArray(p.values) ? p.values : [];
+    }
+    const p = await web.api("GET", `${encodeURIComponent(id)}/values/${encodeURIComponent(range)}`);
+    return Array.isArray(p.values) ? p.values : [];
+  },
+  async append(id, rows) {
+    const range = `${TAB}!A:J`;
+    if (mcp) return mcp.callTool(SERVER, "append_values", { spreadsheetId: id, range, values: rows.map(forSheets) });
+    return web.api("POST", `${encodeURIComponent(id)}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, { values: rows.map(forSheets) });
+  },
+  // Returns the new spreadsheet's id, already set up with a Results tab.
+  async create(title) {
+    if (mcp) {
+      const res = await mcp.callTool(DRIVE, "create_file", { title, contentMimeType: "application/vnd.google-apps.spreadsheet" });
+      const id = createdId(res);
+      if (!id) throw { code: "created_no_id" };
+      const first = (await G.meta(id)).tabs[0] || { sheetId: 0 };
+      const sheetId = first.sheetId || 0;
+      await G.batch(id, [
+        { updateSheetProperties: { properties: { sheetId, title: TAB, gridProperties: { frozenRowCount: 1 } }, fields: "title,gridProperties.frozenRowCount" } },
+        ...setupRequests(sheetId),
+      ]);
+      return id;
+    }
+    const c = await web.api("POST", "", { properties: { title }, sheets: [{ properties: { sheetId: 0, title: TAB, gridProperties: { frozenRowCount: 1 } } }] });
+    if (!c.spreadsheetId) throw { code: "created_no_id" };
+    await G.batch(c.spreadsheetId, setupRequests(0));
+    return c.spreadsheetId;
+  },
+};
+
+// Header row, total and percentage columns for a Results tab, as one batch of Sheets updates.
+function setupRequests(sheetId) {
+  const str = v => ({ userEnteredValue: { stringValue: v } });
+  const f = v => ({ userEnteredValue: { formulaValue: v } });
+  const sum = CRITERIA.map((c, i) => String.fromCharCode(69 + i) + ":" + String.fromCharCode(69 + i)).join("+");   // E:E+F:F+…
+  return [
+    { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: 0 }, fields: "userEnteredValue", rows: [{ values: [
+      ...HEADERS.map(str),
+      f(`=ARRAYFORMULA(IF(ROW(C:C)=1,"Total",IF(LEN(C:C),${sum},)))`),
+      f(`=ARRAYFORMULA(IF(ROW(C:C)=1,"Percentage",IF(LEN(C:C),K:K/${MAX_TOTAL},)))`),
+    ] }] } },
+    { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: "userEnteredFormat.textFormat.bold" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 1, startColumnIndex: 11, endColumnIndex: 12 }, cell: { userEnteredFormat: { numberFormat: { type: "PERCENT", pattern: "0.0%" } } }, fields: "userEnteredFormat.numberFormat" } },
+  ];
+}
+// Drive's create_file answer carries the new file's ID; look for it in the usual places.
+function createdId(res) {
+  const p = (res && res.payload) || {};
+  const cands = [p.id, p.fileId, p.file && p.file.id, p.resourceUri, p.viewUrl, p.webViewLink, p.url, p.file && p.file.viewUrl];
+  for (const v of cands) {
+    if (typeof v !== "string") continue;
+    const m = v.match(/\/d\/([a-zA-Z0-9_-]{20,})/) || v.match(/file\/([a-zA-Z0-9_-]{20,})/) || v.match(/^([a-zA-Z0-9_-]{20,})$/);
+    if (m) return m[1];
+  }
+  const text = JSON.stringify(p).match(/"id"\s*:\s*"([a-zA-Z0-9_-]{25,})"/);
+  return text ? text[1] : null;
+}
+
+/* Google sign-in for the website version. Uses the drive.file permission: the page can
+   only open spreadsheets the viewer picks in Google's own file picker, or that the page creates. */
+const loadScript = src => new Promise((res, rej) => {
+  const s = document.createElement("script"); s.src = src; s.async = true;
+  s.onload = () => res(); s.onerror = () => { s.remove(); rej(new Error("load " + src)); };
+  document.head.appendChild(s);
+});
+const web = {
+  token: null, expires: 0, client: null, pending: null,
+  ready: null,
+  load() {
+    return web.ready ||= Promise.all([loadScript("https://accounts.google.com/gsi/client"), loadScript("https://apis.google.com/js/api.js")])
+      .catch(e => { web.ready = null; throw e; });
+  },
+  // Must run from a click: Google shows its sign-in pop-up.
+  async signIn() {
+    if (web.token && Date.now() < web.expires - 60000) return web.token;
+    try { await web.load(); } catch { throw { code: "signin_failed" }; }
+    return new Promise((resolve, reject) => {
+      if (!web.client) web.client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE.clientId, scope: "https://www.googleapis.com/auth/drive.file",
+        callback: r => { const p = web.pending; web.pending = null; if (!p) return;
+          if (r && r.access_token) { web.token = r.access_token; web.expires = Date.now() + (r.expires_in || 3600) * 1000; p.resolve(web.token); }
+          else p.reject({ code: "signin_failed" }); },
+        error_callback: e => { const p = web.pending; web.pending = null; if (p) p.reject({ code: e && e.type === "popup_closed" ? "signin_cancelled" : "signin_failed" }); },
+      });
+      web.pending = { resolve, reject };
+      web.client.requestAccessToken({ prompt: web.token ? "" : undefined });
+    });
+  },
+  async api(method, path, body, retried) {
+    const token = await web.signIn();
+    const r = await fetch("https://sheets.googleapis.com/v4/spreadsheets" + (path ? "/" + path : ""), {
+      method, headers: { Authorization: "Bearer " + token, ...(body ? { "Content-Type": "application/json" } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    }).catch(() => { throw { code: "timeout" }; });
+    if (r.status === 401 && !retried) { web.token = null; return web.api(method, path, body, true); }
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 403 || r.status === 404) throw { code: "no_access" };
+    if (!r.ok) throw { code: "google_error", message: (data.error && data.error.message) || r.statusText };
+    return data;
+  },
+  // Google's own file picker, limited to spreadsheets. Resolves { id, title } or null.
+  async pick() {
+    const token = await web.signIn();
+    await new Promise((res, rej) => gapi.load("picker", { callback: res, onerror: rej }));
+    return new Promise(resolve => {
+      const view = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS).setIncludeFolders(true).setSelectFolderEnabled(false);
+      const b = new google.picker.PickerBuilder().addView(view).setOAuthToken(token).setDeveloperKey(GOOGLE.apiKey)
+        .setCallback(d => {
+          if (d.action === google.picker.Action.PICKED && d.docs && d.docs[0]) resolve({ id: d.docs[0].id, title: d.docs[0].name });
+          else if (d.action === google.picker.Action.CANCEL) resolve(null);
+        });
+      if (GOOGLE.appId) b.setAppId(GOOGLE.appId);
+      b.build().setVisible(true);
+    });
+  },
+};
+
+/* ---------- Excel (.xlsx) ---------- */
+const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const XLSX_PICK = { types: [{ description: "Excel workbook", accept: { [XLSX_TYPE]: [".xlsx"] } }], excludeAcceptAllOption: true };
+// Saving straight into a file needs the File System Access API, and it doesn't work inside embedded frames.
+const canFile = (() => { try { return typeof window.showOpenFilePicker === "function" && window.self === window.top; } catch { return false; } })();
+let excelLib = null;
+function loadExcel() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  return excelLib ||= loadScript("https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js")
+    .then(() => { if (!window.ExcelJS) throw 0; return window.ExcelJS; })
+    .catch(() => { excelLib = null; throw { code: "xlsx_lib" }; });
+}
+const idb = {
+  open() { return new Promise((res, rej) => { const r = indexedDB.open("c1-scorer", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async get(k) {
+    try { const db = await idb.open(); return await new Promise((res, rej) => { const q = db.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+    catch { return undefined; }
+  },
+  async set(k, v) { const db = await idb.open(); await new Promise((res, rej) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); },
+};
+async function filePerm(handle, ask) {
+  const opts = { mode: "readwrite" };
+  if (!handle.queryPermission) return true;   // no permission model for this handle
+  if (await handle.queryPermission(opts) === "granted") return true;
+  if (!ask || !handle.requestPermission) return false;
+  return (await handle.requestPermission(opts)) === "granted";
+}
+async function readBook(buf) {
+  const ExcelJS = await loadExcel();
+  const wb = new ExcelJS.Workbook();
+  try { await wb.xlsx.load(buf); } catch { throw { code: "xlsx_read" }; }
+  return wb;
+}
+function ensureResults(wb) {
+  let ws = wb.getWorksheet(TAB);
+  if (ws) return ws;
+  ws = wb.addWorksheet(TAB, { views: [{ state: "frozen", ySplit: 1 }] });
+  ws.addRow([...HEADERS, "Total", "Percentage"]).font = { bold: true };
+  ws.columns.forEach((col, i) => { col.width = i === 9 ? 40 : i >= 4 && i <= 8 ? 12 : 18; });
+  ws.getColumn(12).numFmt = "0.0%";
+  return ws;
+}
+const cellValue = v => {
+  if (v == null) return "";
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "object") {
+    if ("result" in v) return v.result == null ? "" : v.result;
+    if (Array.isArray(v.richText)) return v.richText.map(t => t.text).join("");
+    if ("text" in v) return v.text;
+    return "";
+  }
+  return v;
+};
+function lastRow(ws) { let n = 1; ws.eachRow((row, i) => { if (row.hasValues) n = i; }); return n; }
+function bookRows(wb) {
+  const ws = wb.getWorksheet(TAB); if (!ws) return [];
+  const out = [];
+  for (let i = 2, end = lastRow(ws); i <= end; i++) {
+    const row = ws.getRow(i), vals = [];
+    for (let j = 1; j <= 12; j++) vals.push(cellValue(row.getCell(j).value));
+    const scores = vals.slice(4, 9).map(Number);
+    if (vals[10] === "" && scores.every(n => !isNaN(n))) vals[10] = scores.reduce((a, b) => a + b, 0);
+    vals[11] = typeof vals[10] === "number" ? fmtPct(vals[10] / MAX_TOTAL) : "";
+    out.push(vals.map(String));
+  }
+  return out;
+}
+function bookAppend(wb, rows) {
+  const ws = ensureResults(wb);
+  rows.forEach(vals => {
+    const n = lastRow(ws) + 1, total = vals.slice(4, 9).reduce((a, b) => a + (+b || 0), 0);
+    const row = ws.getRow(n);
+    row.values = [...vals, { formula: `SUM(E${n}:I${n})`, result: total }, { formula: `K${n}/${MAX_TOTAL}`, result: total / MAX_TOTAL }];
+    row.getCell(12).numFmt = "0.0%";
+    row.commit();
+  });
+}
+const X = {
+  // The stored workbook: { name, handle } for a file on this device, or { name, bytes } for a copy in this browser.
+  async stored() { return idb.get("xlsx"); },
+  async load(ask) {
+    const st = await X.stored();
+    if (!st) throw { code: "xlsx_gone" };
+    if (st.handle) {
+      if (!(await filePerm(st.handle, ask))) throw { code: ask ? "xlsx_perm" : "needs_click" };
+      let file; try { file = await st.handle.getFile(); } catch { throw { code: "xlsx_gone" }; }
+      return { st, wb: await readBook(await file.arrayBuffer()) };
+    }
+    return { st, wb: await readBook(st.bytes) };
+  },
+  async save(st, wb) {
+    const buf = await wb.xlsx.writeBuffer();
+    if (st.handle) {
+      try { const w = await st.handle.createWritable(); await w.write(buf); await w.close(); }
+      catch { throw { code: "xlsx_write" }; }
+    } else { st.bytes = buf; await idb.set("xlsx", { name: st.name, bytes: buf }); }
+    return buf;
+  },
+  async rows(ask) { const { wb } = await X.load(ask); return bookRows(wb); },
+  async append(rows) { const { st, wb } = await X.load(true); bookAppend(wb, rows); await X.save(st, wb); },
+};
+let downloads;
+async function downloadXlsx() {
+  const btn = $("sheetDownload"); btn.disabled = true;
+  try {
+    const st = await X.stored(); if (!st) throw { code: "xlsx_gone" };
+    const data = st.bytes || await (await st.handle.getFile()).arrayBuffer();
+    const filename = /\.xlsx$/i.test(st.name) ? st.name : st.name + ".xlsx";
+    if (downloads === undefined) { try { downloads = await window.claude?.use?.("downloads") || null; } catch { downloads = null; } }
+    if (downloads) {
+      try { await downloads.save({ filename, data }); }
+      catch (e) { if (!e || e.code !== "declined") say("The download didn't work here. Try again in a moment.", "bad"); }
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([data], { type: XLSX_TYPE }));
+    const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) { say(explain(e, "read", "Excel")[0], "bad"); }
+  finally { btn.disabled = false; }
+}
+$("sheetDownload").onclick = downloadXlsx;
+
+/* ---------- Saved results ---------- */
+async function readSaved(fresh, ask) {
+  if (!sheet) return;
+  if (sheet.kind === "gsheet" && !googleOn()) return;
+  const id = sheet.id, btn = $("refresh");
   btn.disabled = true; btn.textContent = "Loading…";
   try {
-    const res = await mcp.callTool(SERVER, "get_values", { spreadsheetId: SHEET_ID, range: "Results!A2:L" }, fresh ? { cache: { refresh: true } } : undefined);
-    const p = res.payload || {};
-    renderSaved(Array.isArray(p.values) ? p.values : []);
+    const rows = sheet.kind === "xlsx" ? await X.rows(ask) : await G.values(id, `${TAB}!A2:L`, fresh);
+    if (!sheet || sheet.id !== id) return;   // the choice changed while this was loading
+    renderSaved(rows);
     btn.textContent = "Refresh";
   } catch (e) {
-    const [t, k] = explain(e, "read"); say(t, k);
     btn.textContent = "Show saved results";
+    if (e && e.code === "needs_click") return;
+    const [t, k] = explain(e, "read", nameFor()); say(t, k);
   } finally { btn.disabled = false; }
 }
 
 function renderSaved(rows) {
   const ul = $("saved"); ul.innerHTML = "";
   const list = rows.filter(r => r && r[2]).reverse().slice(0, 15);
-  if (!list.length) { ul.innerHTML = `<li><span class="who"><span>No results in the sheet yet. Score a candidate, then tap Save to Google Sheet.</span></span></li>`; return; }
+  if (!list.length) { ul.innerHTML = `<li><span class="who"><span>No results saved yet. Score a candidate, then tap Save result.</span></span></li>`; return; }
   list.forEach(r => {
     const li = document.createElement("li");
     li.innerHTML = `<span class="who"><b></b><span></span></span><span class="pct"></span>`;
@@ -395,6 +744,14 @@ function renderSaved(rows) {
   });
 }
 
+async function appendRows(rows) {
+  if (sheet.kind === "xlsx") return X.append(rows);
+  return G.append(sheet.id, rows);
+}
+const savedWhere = () => sheet.kind === "xlsx" && sheet.mode === "browser"
+  ? `the Excel copy in this browser. Tap Download to get the updated file`
+  : sheet.title || "your spreadsheet";
+
 let saving = false;
 $("save").onclick = async () => {
   if (saving) return;
@@ -402,38 +759,279 @@ $("save").onclick = async () => {
   if (!r.cand) { say("Add the candidate's name before saving.", "bad"); $("cand").focus(); return; }
   const missing = CRITERIA.filter(c => r.scores[c.id] === undefined);
   if (missing.length) { say(`Score all five criteria before saving. Still to score: ${missing.map(c => c.name).join(", ")}.`, "bad"); return; }
-  if (!mcp) { say(explain({ code: "not_granted" })[0], "bad"); return; }
+  if (!sheet || (sheet.kind === "gsheet" && !googleOn())) {
+    openPicker(); say("Choose or create a spreadsheet first, then tap Save result again.", "bad");
+    $("sheetPanel").scrollIntoView({ block: "start" }); return;
+  }
   saving = true; const btn = $("save"); btn.disabled = true; btn.textContent = "Saving…";
   try {
-    await mcp.callTool(SERVER, "append_values", { spreadsheetId: SHEET_ID, range: "Results!A:J", values: [rowFor(r)] });
-    say(`Saved ${r.cand} to the Results tab.`, "ok");
-    readSaved(true);
+    await appendRows([rowFor(r)]);
+    say(`Saved ${r.cand} to ${savedWhere()}.`, "ok");
+    readSaved(true, true);
   } catch (e) {
-    const [t, k] = explain(e, "write"); say(t, k);
+    const [t, k] = explain(e, "write", nameFor()); say(t, k);
     if (e && (e.code === "server_unavailable" || e.code === "upstream_error")) readSaved(true);
   } finally {
-    saving = false; btn.disabled = false; btn.textContent = "Save to Google Sheet";
+    saving = false; btn.disabled = false; btn.textContent = "Save result";
   }
 };
-$("refresh").onclick = () => readSaved(true);
+$("refresh").onclick = () => readSaved(true, true);
+
+/* ---------- Choosing where to save ---------- */
+let pickerOpen = false;
+let pendingTab = null;          // a chosen spreadsheet or workbook that has no Results tab yet
+let listSeq = 0;
+let busy = false;
+let driveGranted = false;
+
+function pickSay(text, kind = "info") {
+  const m = $("pickMsg"); m.textContent = text; m.className = "msg " + kind; m.hidden = !text;
+}
+function renderSheet() {
+  const x = sheet && sheet.kind === "xlsx";
+  $("sheetName").textContent = sheet ? (sheet.title || "Untitled spreadsheet") : "No spreadsheet chosen";
+  $("sheetSub").textContent = !sheet ? "Choose where results are saved."
+    : x && sheet.mode === "browser" ? "Excel file kept in this browser. Download it to open it in Excel."
+    : x ? `Excel file on this device. Results go in its ${TAB} tab.`
+    : !googleOn() ? "Google Sheet. Saving to it works on the page where you chose it."
+    : `Google Sheet. Results go in its ${TAB} tab.`;
+  $("sheetOpen").hidden = !sheet || x;
+  if (sheet && !x) $("sheetOpen").href = sheetUrl(sheet.id);
+  $("sheetDownload").hidden = !x;
+  $("sheetChange").textContent = sheet ? "Change" : "Choose";
+  $("sheetChange").hidden = pickerOpen;
+  $("picker").hidden = !pickerOpen;
+  $("pickCancelRow").hidden = !sheet;
+  $("gPick").hidden = !googleOn();
+  $("gList").hidden = !mcp;
+  $("gWeb").hidden = !!mcp || !gWeb;
+  $("xHead").textContent = googleOn() ? "Or use an Excel file (.xlsx)" : "Use an Excel file (.xlsx)";
+  $("xNote").textContent = canFile
+    ? "Results are saved straight into the file. Use a workbook just for these results: saving rewrites the file, which can drop charts or pivot tables."
+    : "This browser can't save into files directly, so the workbook is kept in this browser. Tap Download whenever you want the updated file.";
+  $("refresh").hidden = !sheet || (!x && !googleOn());
+  if (!sheet) $("saved").innerHTML = `<li><span class="who"><span>Choose where to save results above to see them here.</span></span></li>`;
+}
+function setSheet(next) {
+  sheet = next; pendingTab = null;
+  store.set(SHEET_KEY, sheet);
+  closePicker();
+  showLegacy();
+  $("saved").innerHTML = "";
+  readSaved(true, true);
+}
+function openPicker() {
+  pickerOpen = true; pendingTab = null; $("addTabRow").hidden = true; pickSay("");
+  renderSheet();
+  if (!mcp) return;
+  if (driveGranted) loadList($("pickSearch").value.trim());
+  else {
+    $("pickList").innerHTML = `<li><button type="button" id="pickLoad"><b>Show my spreadsheets</b><span>Lists the Google Sheets in your Drive</span></button></li>`;
+    $("pickLoad").onclick = () => loadList($("pickSearch").value.trim());
+  }
+}
+function closePicker() { pickerOpen = false; pendingTab = null; $("addTabRow").hidden = true; pickSay(""); renderSheet(); }
+
+const quote = s => "'" + s.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
+async function loadList(q) {
+  const seq = ++listSeq, ul = $("pickList");
+  ul.innerHTML = `<li class="empty">Loading your spreadsheets…</li>`;
+  let query = "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false";
+  if (q) query += ` and title contains ${quote(q)}`;
+  const input = { query, pageSize: 25, excludeContentSnippets: true };
+  if (!q) input.orderBy = "viewedByMeTime desc";
+  try {
+    const res = await mcp.callTool(DRIVE, "search_files", input);
+    driveGranted = true;
+    if (seq !== listSeq) return;
+    const files = ((res.payload || {}).files || []).filter(f => f && f.id && !(f.capabilities && f.capabilities.canEdit === false));
+    ul.innerHTML = "";
+    if (!files.length) { ul.innerHTML = `<li class="empty">${q ? "No spreadsheets you can edit match that name." : "No spreadsheets you can edit were found. Create a new one below."}</li>`; return; }
+    files.forEach(f => {
+      const li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.innerHTML = "<b></b><span></span>";
+      b.querySelector("b").textContent = f.title || "Untitled spreadsheet";
+      const when = (f.modifiedTime || "").slice(0, 10);
+      const inUse = sheet && sheet.kind === "gsheet" && sheet.id === f.id;
+      b.querySelector("span").textContent = (inUse ? "In use · " : "") + (when ? `Edited ${when}` : "");
+      if (inUse) b.setAttribute("aria-current", "true");
+      b.onclick = () => choose(f.id);
+      li.appendChild(b); ul.appendChild(li);
+    });
+  } catch (e) {
+    if (seq !== listSeq) return;
+    const [t] = explain(e, "read", DRIVE);
+    ul.innerHTML = `<li class="empty"></li>`;
+    ul.firstChild.textContent = `${t} You can still paste a spreadsheet's link below.`;
+  }
+}
+let searchTimer = null;
+$("pickSearch").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadList($("pickSearch").value.trim()), 350);
+});
+
+function idFrom(text) {
+  const t = (text || "").trim();
+  const m = t.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/) || t.match(/^([a-zA-Z0-9_-]{25,})$/);
+  return m ? m[1] : null;
+}
+function lock(on) {
+  busy = on;
+  ["pickUrlGo", "newGo", "addTab", "pickCancel", "gPicker", "xOpen", "xNew"].forEach(id => $(id).disabled = on);
+  $("pickList").querySelectorAll("button").forEach(b => b.disabled = on);
+}
+function askAddTab(p) {
+  pendingTab = p;
+  pickSay(`${p.title} has no ${TAB} tab yet. The app can add one with the column headers it needs. Your other tabs aren't changed.`);
+  $("addTab").textContent = `Add a ${TAB} tab to ${p.title}`;
+  $("addTabRow").hidden = false;
+}
+
+async function choose(id, titleHint) {
+  if (busy) return;
+  lock(true); $("addTabRow").hidden = true; pickSay("Opening the spreadsheet…");
+  try {
+    const m = await G.meta(id), title = m.title || titleHint;
+    if (m.tabs.some(t => t.title === TAB)) { setSheet({ kind: "gsheet", id, title }); say(`Results will be saved to ${title}.`, "ok"); return; }
+    askAddTab({ kind: "gsheet", id, title, ids: m.tabs.map(t => t.sheetId) });
+  } catch (e) {
+    pickSay(e && e.code === "tool_error"
+      ? "That spreadsheet couldn't be opened. Check the link, and that your Google account can edit it."
+      : explain(e, "read")[0], "bad");
+  } finally { lock(false); }
+}
+$("pickUrlGo").onclick = () => {
+  const id = idFrom($("pickUrl").value);
+  if (!id) { pickSay("Paste the spreadsheet's full link, or the long ID between /d/ and /edit in it.", "bad"); $("pickUrl").focus(); return; }
+  choose(id);
+};
+$("pickUrl").addEventListener("keydown", e => { if (e.key === "Enter") $("pickUrlGo").click(); });
+$("gPicker").onclick = async () => {
+  if (busy) return;
+  pickSay("");
+  try { const f = await web.pick(); if (f) choose(f.id, f.title); }
+  catch (e) { pickSay(explain(e, "read")[0], "bad"); }
+};
+
+$("addTab").onclick = async () => {
+  if (busy || !pendingTab) return;
+  const p = pendingTab;
+  lock(true); pickSay(`Adding a ${TAB} tab…`);
+  try {
+    if (p.kind === "xlsx") {
+      ensureResults(p.wb);
+      await X.save(p.st, p.wb);
+      await useStored(p.st);
+      say(`Added a ${TAB} tab to ${p.title}. Results will be saved there.`, "ok");
+      return;
+    }
+    let sheetId; do { sheetId = Math.floor(Math.random() * 2e9) + 1; } while (p.ids.includes(sheetId));
+    await G.batch(p.id, [
+      { addSheet: { properties: { sheetId, title: TAB, gridProperties: { rowCount: 1000, columnCount: 12, frozenRowCount: 1 } } } },
+      ...setupRequests(sheetId),
+    ]);
+    setSheet({ kind: "gsheet", id: p.id, title: p.title });
+    say(`Added a ${TAB} tab to ${p.title}. Results will be saved there.`, "ok");
+  } catch (e) {
+    pickSay(explain(e, "write", p.kind === "xlsx" ? "Excel" : "Google Sheets")[0].replace("the row may or may not have been added", "the tab may or may not have been added"), "bad");
+  } finally { lock(false); }
+};
+
+$("newGo").onclick = async () => {
+  if (busy) return;
+  const title = $("newName").value.trim();
+  if (!title) { pickSay("Give the new spreadsheet a name.", "bad"); $("newName").focus(); return; }
+  lock(true); pickSay(`Creating ${title} in your Google Drive…`);
+  try {
+    const id = await G.create(title);
+    setSheet({ kind: "gsheet", id, title });
+    say(`Created ${title}. Results will be saved there.`, "ok");
+  } catch (e) {
+    const unsure = !e || !e.code || ["timeout", "server_unavailable", "upstream_error"].includes(e.code);
+    pickSay(e && e.code === "created_no_id" ? `${title} was created, but its link didn't come back. Find it in your Drive and choose it to finish setting it up.`
+      : unsure ? "Google didn't answer in time, so the spreadsheet may or may not have been created. Check your Drive before creating another."
+      : explain(e, "write", mcp ? DRIVE : "Google")[0], "bad");
+  } finally { lock(false); }
+};
+$("newName").addEventListener("keydown", e => { if (e.key === "Enter") $("newGo").click(); });
+
+// Excel: open or create a workbook
+async function useStored(st) {
+  await idb.set("xlsx", st);
+  setSheet({ kind: "xlsx", title: st.name.replace(/\.xlsx$/i, ""), mode: st.handle ? "file" : "browser" });
+}
+async function openBook(buf, name, handle) {
+  const wb = await readBook(buf);
+  const st = handle ? { name, handle } : { name, bytes: buf };
+  if (wb.getWorksheet(TAB)) { await useStored(st); say(`Results will be saved to ${name}.`, "ok"); return; }
+  askAddTab({ kind: "xlsx", title: name, wb, st });
+}
+$("xOpen").onclick = async () => {
+  if (busy) return;
+  pickSay(""); $("addTabRow").hidden = true;
+  if (!canFile) { $("xFile").click(); return; }
+  let handle;
+  try { [handle] = await window.showOpenFilePicker(XLSX_PICK); }
+  catch (e) { if (!e || e.name !== "AbortError") $("xFile").click(); return; }
+  lock(true); pickSay("Opening the file…");
+  try {
+    if (!(await filePerm(handle, true))) throw { code: "xlsx_perm" };
+    await openBook(await (await handle.getFile()).arrayBuffer(), handle.name, handle);
+    if (!pendingTab) pickSay("");
+  } catch (e) { pickSay(explain(e, "read", "Excel")[0], "bad"); }
+  finally { lock(false); }
+};
+$("xFile").onchange = async () => {
+  const f = $("xFile").files[0]; $("xFile").value = "";
+  if (!f) return;
+  lock(true); pickSay("Opening the file…");
+  try { await openBook(await f.arrayBuffer(), f.name, null); if (!pendingTab) pickSay(""); }
+  catch (e) { pickSay(explain(e, "read", "Excel")[0], "bad"); }
+  finally { lock(false); }
+};
+$("xNew").onclick = async () => {
+  if (busy) return;
+  pickSay(""); $("addTabRow").hidden = true;
+  const suggestedName = "C1 Speaking Results.xlsx";
+  let handle = null;
+  if (canFile && window.showSaveFilePicker) {
+    try { handle = await window.showSaveFilePicker({ ...XLSX_PICK, suggestedName }); }
+    catch (e) { if (e && e.name === "AbortError") return; handle = null; }
+  }
+  lock(true); pickSay("Creating the workbook…");
+  try {
+    const ExcelJS = await loadExcel();
+    const wb = new ExcelJS.Workbook();
+    ensureResults(wb);
+    const st = handle ? { name: handle.name, handle } : { name: suggestedName };
+    await X.save(st, wb);
+    await useStored(st);
+    say(handle ? `Created ${handle.name}. Results will be saved there.` : "Created a new Excel workbook in this browser. Tap Download at the top whenever you want the file.", "ok");
+  } catch (e) { pickSay(explain(e, "write", "Excel")[0], "bad"); }
+  finally { lock(false); }
+};
+
+$("sheetChange").onclick = openPicker;
+$("pickCancel").onclick = closePicker;
 
 /* Candidates saved on this device by the earlier version of this page */
 function showLegacy() {
   const old = store.get("c1-saved", []).filter(r => r && r.cand && CRITERIA.every(c => r.scores && r.scores[c.id] !== undefined));
-  $("legacyRow").hidden = !old.length || !mcp;
-  $("legacy").textContent = `Add ${old.length} ${old.length === 1 ? "candidate" : "candidates"} saved on this device to the sheet`;
+  $("legacyRow").hidden = !old.length || !sheet || (sheet.kind === "gsheet" && !googleOn());
+  $("legacy").textContent = `Add ${old.length} ${old.length === 1 ? "candidate" : "candidates"} saved on this device to the spreadsheet`;
   return old;
 }
 $("legacy").onclick = async () => {
-  const old = showLegacy(); if (!old.length) return;
+  const old = showLegacy(); if (!old.length || !sheet) return;
   const btn = $("legacy"); btn.disabled = true; btn.textContent = "Adding…";
   try {
-    await mcp.callTool(SERVER, "append_values", { spreadsheetId: SHEET_ID, range: "Results!A:J", values: old.map(r => rowFor(r, (r.date || today()) + " 00:00")) });
+    await appendRows(old.map(r => rowFor(r, (r.date || today()) + " 00:00")));
     store.del("c1-saved");
-    say(`Added ${old.length} saved ${old.length === 1 ? "candidate" : "candidates"} to the sheet.`, "ok");
-    readSaved(true);
+    say(`Added ${old.length} saved ${old.length === 1 ? "candidate" : "candidates"} to the spreadsheet.`, "ok");
+    readSaved(true, true);
   } catch (e) {
-    const [t, k] = explain(e, "write"); say(t, k);
+    const [t, k] = explain(e, "write", nameFor()); say(t, k);
   } finally { btn.disabled = false; showLegacy(); }
 };
 
@@ -454,19 +1052,31 @@ resetBtn.onclick = () => {
 buildCriteria();
 load(store.get("c1-draft", { date: today() }));
 renderSaved([]);
-$("saved").innerHTML = `<li><span class="who"><span>Tap Show saved results to see what's in your sheet.</span></span></li>`;
+renderSheet();
+if (sheet) $("saved").innerHTML = `<li><span class="who"><span>Tap Show saved results to see what's saved.</span></span></li>`;
 
 (async () => {
   try { mcp = await window.claude?.use?.("mcp"); } catch { mcp = null; }
-  if (!mcp) {
-    $("refresh").hidden = true;
-    $("saved").innerHTML = `<li><span class="who"><span>Saving to Google Sheets works when this page is open on claude.ai. You can still copy the results.</span></span></li>`;
-    return;
+  gWeb = !mcp && !!GOOGLE.clientId;
+  if (gWeb) web.load().catch(() => {});   // get Google's scripts ready so sign-in opens straight from a click
+  if (sheet && sheet.kind === "xlsx" && !(await X.stored())) {
+    sheet = null; store.del(SHEET_KEY);
+    say("The Excel workbook this page was using is no longer in this browser. Choose or create one again.", "bad");
   }
+  renderSheet();
   showLegacy();
   let state = "prompt";
-  try { const perms = await window.claude.use("permissions"); if (perms) state = await perms.state("mcp:" + SERVER).catch(() => "prompt"); } catch {}
-  if (state === "granted") readSaved(false);
+  if (mcp) try {
+    const perms = await window.claude.use("permissions");
+    if (perms) {
+      state = await perms.state("mcp:" + SERVER).catch(() => "prompt");
+      driveGranted = (await perms.state("mcp:" + DRIVE).catch(() => "prompt")) === "granted";
+    }
+  } catch {}
+  if (!sheet) openPicker();
+  else if (sheet.kind === "xlsx") readSaved(false, false);
+  else if (mcp && state === "granted") readSaved(false);
+  // website: Google sign-in waits for a click on Show saved results or Save result
 })();
 </script>
 
