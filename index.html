@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>C1 Speaking Scorer</title>
+<title>Cambridge Speaking Scorer</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,6 +55,12 @@ body {
 }
 header h1 { font-family: var(--display); font-size: 1.45rem; font-weight: 700; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 header p { margin: 4px 0 0; color: var(--muted); font-size: 0.88rem; }
+.levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 12px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.levels button { font: inherit; font-size: 0.84rem; font-weight: 600; padding: 9px 4px; border: 0; border-radius: 9px; background: none; color: var(--muted); cursor: pointer; line-height: 1.2; }
+.levels button b { display: block; font-family: var(--display); font-size: 1rem; color: var(--ink); }
+.levels button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.levels button[aria-pressed="true"] b { color: var(--surface); }
+.levels-msg { margin: 6px 0 0; font-size: 0.85rem; color: var(--warn); }
 
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
 .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -160,8 +166,10 @@ a.mini { text-decoration: none; }
 
 <div class="wrap">
   <header>
-    <h1>C1 Advanced Speaking</h1>
-    <p>Tap the band descriptor that best matches the candidate for each criterion. The score updates as you go.</p>
+    <h1 id="title">C1 Advanced Speaking</h1>
+    <p>Choose the exam, then tap the band descriptor that best matches the candidate for each criterion. The score updates as you go.</p>
+    <div class="levels" id="levels" role="group" aria-label="Exam"></div>
+    <p class="levels-msg" id="levelsMsg" role="status" hidden></p>
   </header>
 
   <section class="panel" id="sheetPanel" aria-label="Where results are saved">
@@ -184,10 +192,10 @@ a.mini { text-decoration: none; }
         </div>
         <div class="row" id="gWeb" hidden><button class="btn" id="gPicker" type="button">Choose from Google Drive</button></div>
         <div class="inline" style="margin-top:8px">
-          <input id="newName" value="C1 Speaking Results" autocomplete="off" aria-label="New spreadsheet name">
+          <input id="newName" value="Cambridge Speaking Results" autocomplete="off" aria-label="New spreadsheet name">
           <button class="btn" id="newGo" type="button">Create new</button>
         </div>
-        <p class="note" style="margin-top:6px">A new spreadsheet comes with a Results tab, column headers, and total and percentage columns.</p>
+        <p class="note" style="margin-top:6px">A new spreadsheet comes with a results tab, column headers, and total and percentage columns. Each exam gets its own tab, added the first time you save a result for it.</p>
       </div>
       <div id="xPick">
         <h3 id="xHead">Use an Excel file (.xlsx)</h3>
@@ -226,7 +234,7 @@ a.mini { text-decoration: none; }
 
   <section class="panel" aria-label="Saved results">
     <div class="sheet-head">
-      <h2>Saved results</h2>
+      <h2 id="savedHead">Saved results</h2>
     </div>
     <ul class="saved" id="saved"></ul>
     <div class="row" id="legacyRow" hidden>
@@ -255,22 +263,23 @@ const GOOGLE = {
 };
 const SERVER = "Google Sheets";
 const DRIVE = "Google Drive";
-const TAB = "Results";
 const SHEET_KEY = "c1-sheet";
+const LEVEL_KEY = "speaking-level";
 const BETWEEN = (a,b) => `Performance shares features of Bands ${a} and ${b}.`;
-const CRITERIA = [
+// C1 Advanced: wording from Cambridge's "C1 Advanced: Assessing speaking" guide for teachers (2024/25).
+const C1_CRITERIA = [
   { id: "gr", name: "Grammatical Resource", d: {
     1: "Shows a good degree of control of simple grammatical forms, and attempts some complex grammatical forms.",
     3: "Shows a good degree of control of a range of simple and some complex grammatical forms.",
     5: "Maintains control of a wide range of grammatical forms." } },
   { id: "lr", name: "Lexical Resource", d: {
-    1: "Uses appropriate vocabulary to give and exchange views, but only when discussing familiar topics.",
+    1: "Uses appropriate vocabulary to give and exchange views, but only when talking about familiar topics.",
     3: "Uses a range of appropriate vocabulary to give and exchange views on familiar and unfamiliar topics.",
-    5: "Uses a wide range of appropriate vocabulary with flexibility to give and exchange views on unfamiliar and abstract topics." } },
+    5: "Uses a wide range of appropriate vocabulary to give and exchange views on familiar and unfamiliar topics." } },
   { id: "dm", name: "Discourse Management", d: {
-    1: "Produces extended stretches of language with very little hesitation. Contributions are relevant and there is a clear organisation of ideas. Uses a range of cohesive devices and discourse markers.",
-    3: "Produces extended stretches of language with ease and with very little hesitation. Contributions are relevant, coherent and varied. Uses a wide range of cohesive devices and discourse markers.",
-    5: "Produces extended stretches of language with ease and with very little hesitation. Contributions are relevant, coherent, varied and detailed. Makes full and effective use of a wide range of cohesive devices and discourse markers." } },
+    1: "Produces extended stretches of language despite some hesitation. Contributions are relevant and there is very little repetition. Uses a range of cohesive devices.",
+    3: "Produces extended stretches of language with very little hesitation. Contributions are relevant and there is a clear organisation of ideas. Uses a range of cohesive devices and discourse markers.",
+    5: "Produces extended stretches of language with ease and with very little hesitation. Contributions are relevant, coherent and varied. Uses a wide range of cohesive devices and discourse markers." } },
   { id: "pr", name: "Pronunciation", d: {
     1: "Is intelligible. Intonation is generally appropriate. Sentence and word stress is generally accurately placed. Individual sounds are generally articulated clearly.",
     3: "Is intelligible. Intonation is appropriate. Sentence and word stress is accurately placed. Individual sounds are articulated clearly.",
@@ -278,11 +287,82 @@ const CRITERIA = [
   { id: "ic", name: "Interactive Communication", d: {
     1: "Initiates and responds appropriately. Maintains and develops the interaction and negotiates towards an outcome with very little support.",
     3: "Initiates and responds appropriately, linking contributions to those of other speakers. Maintains and develops the interaction and negotiates towards an outcome.",
-    5: "Interacts with ease by skilfully linking contributions to those of other speakers. Widens the scope of the interaction and negotiates towards an outcome." } },
+    5: "Interacts with ease, linking contributions to those of other speakers. Widens the scope of the interaction and negotiates towards an outcome." } },
 ];
+// A2 Key, B1 Preliminary and B2 First: wording from Cambridge's "Assessing speaking" guides for teachers (2024/25).
+const A2_CRITERIA = [
+  { id: "gv", name: "Grammar and Vocabulary", d: {
+    1: "Shows only limited control of a few grammatical forms. Uses a vocabulary of isolated words and phrases.",
+    3: "Shows sufficient control of simple grammatical forms. Uses appropriate vocabulary to talk about everyday situations.",
+    5: "Shows a good degree of control of simple grammatical forms. Uses a range of appropriate vocabulary when talking about everyday situations." } },
+  { id: "pr", name: "Pronunciation", d: {
+    1: "Has very limited control of phonological features and is often unintelligible.",
+    3: "Is mostly intelligible, despite limited control of phonological features.",
+    5: "Is mostly intelligible, and has some control of phonological features at both utterance and word levels." } },
+  { id: "ic", name: "Interactive Communication", d: {
+    1: "Has considerable difficulty maintaining simple exchanges. Requires additional prompting and support.",
+    3: "Maintains simple exchanges, despite some difficulty. Requires prompting and support.",
+    5: "Maintains simple exchanges. Requires very little prompting and support." } },
+];
+const B1_CRITERIA = [
+  { id: "gv", name: "Grammar and Vocabulary", d: {
+    1: "Shows sufficient control of simple grammatical forms. Uses a limited range of appropriate vocabulary to talk about everyday situations.",
+    3: "Shows a good degree of control of simple grammatical forms. Uses a range of appropriate vocabulary when talking about everyday situations.",
+    5: "Shows a good degree of control of simple grammatical forms, and attempts some complex grammatical forms. Uses a range of appropriate vocabulary to give and exchange views on familiar topics." } },
+  { id: "dm", name: "Discourse Management", d: {
+    1: "Produces responses which are characterised by short phrases and frequent hesitation. Repeats information or digresses from the topic.",
+    3: "Produces responses which are extended beyond short phrases, despite hesitation. Contributions are mostly relevant, despite some repetition. Uses basic cohesive devices.",
+    5: "Produces extended stretches of language despite some hesitation. Contributions are relevant and there is very little repetition. Uses a range of cohesive devices." } },
+  { id: "pr", name: "Pronunciation", d: {
+    1: "Is mostly intelligible, despite limited control of phonological features.",
+    3: "Is mostly intelligible, and has some control of phonological features at both utterance and word levels.",
+    5: "Is intelligible. Intonation is generally appropriate. Sentence and word stress is generally accurately placed. Individual sounds are generally articulated clearly." } },
+  { id: "ic", name: "Interactive Communication", d: {
+    1: "Maintains simple exchanges, despite some difficulty. Requires prompting and support.",
+    3: "Initiates and responds appropriately. Keeps the interaction going with very little prompting and support.",
+    5: "Initiates and responds appropriately. Maintains and develops the interaction and negotiates towards an outcome with very little support." } },
+];
+const B2_CRITERIA = [
+  { id: "gv", name: "Grammar and Vocabulary", d: {
+    1: "Shows a good degree of control of simple grammatical forms. Uses a range of appropriate vocabulary when talking about everyday situations.",
+    3: "Shows a good degree of control of simple grammatical forms, and attempts some complex grammatical forms. Uses a range of appropriate vocabulary to give and exchange views on a range of familiar topics.",
+    5: "Shows a good degree of control of a range of simple and some complex grammatical forms. Uses a range of appropriate vocabulary to give and exchange views on a wide range of familiar topics." } },
+  { id: "dm", name: "Discourse Management", d: {
+    1: "Produces responses which are extended beyond short phrases, despite hesitation. Contributions are mostly relevant, despite some repetition. Uses basic cohesive devices.",
+    3: "Produces extended stretches of language despite some hesitation. Contributions are relevant and there is very little repetition. Uses a range of cohesive devices.",
+    5: "Produces extended stretches of language with very little hesitation. Contributions are relevant and there is a clear organisation of ideas. Uses a range of cohesive devices and discourse markers." } },
+  { id: "pr", name: "Pronunciation", d: {
+    1: "Is mostly intelligible, and has some control of phonological features at both utterance and word levels.",
+    3: "Is intelligible. Intonation is generally appropriate. Sentence and word stress is generally accurately placed. Individual sounds are generally articulated clearly.",
+    5: "Is intelligible. Intonation is appropriate. Sentence and word stress is accurately placed. Individual sounds are articulated clearly." } },
+  { id: "ic", name: "Interactive Communication", d: {
+    1: "Initiates and responds appropriately. Keeps the interaction going with very little prompting and support.",
+    3: "Initiates and responds appropriately. Maintains and develops the interaction and negotiates towards an outcome with very little support.",
+    5: "Initiates and responds appropriately, linking contributions to those of other speakers. Maintains and develops the interaction and negotiates towards an outcome." } },
+];
+/* Each exam has its own criteria and its own results tab. C1 keeps the original "Results" tab,
+   so spreadsheets made before the exam picker existed carry on working unchanged. */
+const EXAMS = {
+  a2: { short: "A2", name: "A2 Key", tab: "A2 Key Results", criteria: A2_CRITERIA },
+  b1: { short: "B1", name: "B1 Preliminary", tab: "B1 Preliminary Results", criteria: B1_CRITERIA },
+  b2: { short: "B2", name: "B2 First", tab: "B2 First Results", criteria: B2_CRITERIA },
+  c1: { short: "C1", name: "C1 Advanced", tab: "Results", criteria: C1_CRITERIA },
+};
 const MAX_BAND = 5;
-const MAX_TOTAL = MAX_BAND * CRITERIA.length;
-const HEADERS = ["Saved at", "Date", "Candidate", "Examiner", ...CRITERIA.map(c => c.name), "Comments"];
+Object.entries(EXAMS).forEach(([key, x]) => {
+  const n = x.criteria.length;
+  x.key = key;
+  x.max = MAX_BAND * n;
+  x.headers = ["Saved at", "Date", "Candidate", "Examiner", ...x.criteria.map(c => c.name), "Comments"];
+  x.commentCol = 4 + n;             // 0-based column of Comments; Total and Percentage follow it
+  x.totalCol = 5 + n;
+  x.pctCol = 6 + n;
+  x.textCols = [2, 3, x.commentCol];
+});
+const colName = i => String.fromCharCode(65 + i);          // 0 -> A (no exam needs more than 26 columns)
+const a1 = (tab, cols) => `'${tab.replace(/'/g, "''")}'!${cols}`;
+let EX = EXAMS[(() => { try { return JSON.parse(localStorage.getItem(LEVEL_KEY)); } catch { return null; } })()] || EXAMS.c1;
+let CRITERIA = EX.criteria;
 function descriptor(c, b) {
   if (b === 0) return "Performance below Band 1.";
   if (b === 2) return BETWEEN(1,3);
@@ -353,7 +433,7 @@ function pick(id, b) {
 function totals() {
   const vals = CRITERIA.map(c => scores[c.id]).filter(v => v !== undefined);
   const total = vals.reduce((a,b) => a + b, 0);
-  return { done: vals.length, total, pct: vals.length === CRITERIA.length ? total / MAX_TOTAL : null };
+  return { done: vals.length, total, pct: vals.length === CRITERIA.length ? total / EX.max : null };
 }
 const fmtPct = p => (p * 100).toFixed(1) + "%";
 
@@ -369,18 +449,19 @@ function render() {
   });
   const t = totals();
   $("dots").innerHTML = CRITERIA.map(c => `<i class="${scores[c.id] !== undefined ? "on" : ""}"></i>`).join("");
-  $("tot").textContent = `${t.total} / ${MAX_TOTAL}`;
+  $("tot").textContent = `${t.total} / ${EX.max}`;
   const left = CRITERIA.length - t.done;
   $("left").textContent = left ? `${left} ${left === 1 ? "criterion" : "criteria"} to score` : "All criteria scored";
   $("pct").textContent = t.pct === null ? "–" : fmtPct(t.pct);
 }
 
 function current() {
-  return { cand: $("cand").value.trim(), date: $("date").value, exam: $("exam").value.trim(), comm: $("comm").value.trim(), scores: { ...scores } };
+  return { level: EX.key, cand: $("cand").value.trim(), date: $("date").value, exam: $("exam").value.trim(), comm: $("comm").value.trim(), scores: { ...scores } };
 }
 function load(r) {
   $("cand").value = r.cand || ""; $("date").value = r.date || today(); $("exam").value = r.exam || ""; $("comm").value = r.comm || "";
-  scores = { ...(r.scores || {}) };
+  // scores belong to one exam; a draft from before the exam picker is a C1 draft
+  scores = (r.level || "c1") === EX.key ? { ...(r.scores || {}) } : {};
   openId = (CRITERIA.find(c => scores[c.id] === undefined) || {}).id || null;
   render();
 }
@@ -392,11 +473,12 @@ function say(text, kind = "info") {
 }
 
 function summary(r) {
+  const ex = EXAMS[r.level] || EX, CRITERIA = ex.criteria, MAX_TOTAL = ex.max;
   const vals = CRITERIA.map(c => r.scores[c.id]);
   const total = vals.reduce((a,b) => a + (b ?? 0), 0);
   const complete = vals.every(v => v !== undefined);
   return [
-    `C1 Advanced Speaking: ${r.cand || "Unnamed candidate"}`,
+    `${ex.name} Speaking: ${r.cand || "Unnamed candidate"}`,
     r.date ? `Date: ${r.date}` : null,
     r.exam ? `Examiner: ${r.exam}` : null,
     ...CRITERIA.map(c => `${c.name}: ${r.scores[c.id] ?? "not scored"}`),
@@ -416,12 +498,11 @@ function summary(r) {
 let mcp = null;          // Claude connectors (artifact)
 let gWeb = false;        // Google sign-in (website)
 const googleOn = () => !!mcp || gWeb;
-const TEXT_COLS = [2, 3, 9];   // candidate, examiner, comments
-function rowFor(r, savedAt) {
-  return [savedAt || stamp(), r.date || today(), r.cand || "", r.exam || "", ...CRITERIA.map(c => r.scores[c.id]), r.comm || ""];
+function rowFor(r, savedAt, ex = EX) {
+  return [savedAt || stamp(), r.date || today(), r.cand || "", r.exam || "", ...ex.criteria.map(c => r.scores[c.id]), r.comm || ""];
 }
-// leading apostrophe keeps typed text as plain text in Google Sheets
-const forSheets = row => row.map((v, i) => TEXT_COLS.includes(i) ? "'" + (v || "") : v);
+// leading apostrophe keeps typed text (candidate, examiner, comments) as plain text in Google Sheets
+const forSheets = (row, ex) => row.map((v, i) => ex.textCols.includes(i) ? "'" + (v || "") : v);
 
 function explain(err, action, name = "Google Sheets") {
   const code = err && err.code;
@@ -477,13 +558,34 @@ const G = {
     const p = await web.api("GET", `${encodeURIComponent(id)}/values/${encodeURIComponent(range)}`);
     return Array.isArray(p.values) ? p.values : [];
   },
-  async append(id, rows) {
-    const range = `${TAB}!A:J`;
-    if (mcp) return mcp.callTool(SERVER, "append_values", { spreadsheetId: id, range, values: rows.map(forSheets) });
-    return web.api("POST", `${encodeURIComponent(id)}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, { values: rows.map(forSheets) });
+  // Tab titles per spreadsheet, so saving doesn't look them up every time.
+  tabs: new Map(),
+  async tabList(id, fresh) {
+    if (fresh || !G.tabs.has(id)) G.tabs.set(id, (await G.meta(id)).tabs);
+    return G.tabs.get(id);
   },
-  // Returns the new spreadsheet's id, already set up with a Results tab.
-  async create(title) {
+  async hasTab(id, tab, fresh) { return (await G.tabList(id, fresh)).some(t => t.title === tab); },
+  // Adds the exam's results tab the first time a result for that exam is saved here.
+  async ensureTab(id, ex) {
+    if (await G.hasTab(id, ex.tab)) return;
+    const tabs = await G.tabList(id, true);
+    if (tabs.some(t => t.title === ex.tab)) return;
+    const ids = tabs.map(t => t.sheetId);
+    let sheetId; do { sheetId = Math.floor(Math.random() * 2e9) + 1; } while (ids.includes(sheetId));
+    await G.batch(id, [
+      { addSheet: { properties: { sheetId, title: ex.tab, gridProperties: { rowCount: 1000, columnCount: ex.pctCol + 1, frozenRowCount: 1 } } } },
+      ...setupRequests(sheetId, ex),
+    ]);
+    G.tabs.set(id, [...tabs, { sheetId, title: ex.tab }]);
+  },
+  async append(id, rows, ex) {
+    await G.ensureTab(id, ex);
+    const range = a1(ex.tab, `A:${colName(ex.commentCol)}`), values = rows.map(r => forSheets(r, ex));
+    if (mcp) return mcp.callTool(SERVER, "append_values", { spreadsheetId: id, range, values });
+    return web.api("POST", `${encodeURIComponent(id)}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, { values });
+  },
+  // Returns the new spreadsheet's id, already set up with a results tab for the chosen exam.
+  async create(title, ex) {
     if (mcp) {
       const res = await mcp.callTool(DRIVE, "create_file", { title, contentMimeType: "application/vnd.google-apps.spreadsheet" });
       const id = createdId(res);
@@ -491,31 +593,32 @@ const G = {
       const first = (await G.meta(id)).tabs[0] || { sheetId: 0 };
       const sheetId = first.sheetId || 0;
       await G.batch(id, [
-        { updateSheetProperties: { properties: { sheetId, title: TAB, gridProperties: { frozenRowCount: 1 } }, fields: "title,gridProperties.frozenRowCount" } },
-        ...setupRequests(sheetId),
+        { updateSheetProperties: { properties: { sheetId, title: ex.tab, gridProperties: { frozenRowCount: 1 } }, fields: "title,gridProperties.frozenRowCount" } },
+        ...setupRequests(sheetId, ex),
       ]);
       return id;
     }
-    const c = await web.api("POST", "", { properties: { title }, sheets: [{ properties: { sheetId: 0, title: TAB, gridProperties: { frozenRowCount: 1 } } }] });
+    const c = await web.api("POST", "", { properties: { title }, sheets: [{ properties: { sheetId: 0, title: ex.tab, gridProperties: { frozenRowCount: 1 } } }] });
     if (!c.spreadsheetId) throw { code: "created_no_id" };
-    await G.batch(c.spreadsheetId, setupRequests(0));
+    await G.batch(c.spreadsheetId, setupRequests(0, ex));
     return c.spreadsheetId;
   },
 };
 
-// Header row, total and percentage columns for a Results tab, as one batch of Sheets updates.
-function setupRequests(sheetId) {
+// Header row, total and percentage columns for an exam's results tab, as one batch of Sheets updates.
+function setupRequests(sheetId, ex) {
   const str = v => ({ userEnteredValue: { stringValue: v } });
   const f = v => ({ userEnteredValue: { formulaValue: v } });
-  const sum = CRITERIA.map((c, i) => String.fromCharCode(69 + i) + ":" + String.fromCharCode(69 + i)).join("+");   // E:E+F:F+…
+  const sum = ex.criteria.map((c, i) => colName(4 + i) + ":" + colName(4 + i)).join("+");   // E:E+F:F+…
+  const T = colName(ex.totalCol);
   return [
     { updateCells: { start: { sheetId, rowIndex: 0, columnIndex: 0 }, fields: "userEnteredValue", rows: [{ values: [
-      ...HEADERS.map(str),
+      ...ex.headers.map(str),
       f(`=ARRAYFORMULA(IF(ROW(C:C)=1,"Total",IF(LEN(C:C),${sum},)))`),
-      f(`=ARRAYFORMULA(IF(ROW(C:C)=1,"Percentage",IF(LEN(C:C),K:K/${MAX_TOTAL},)))`),
+      f(`=ARRAYFORMULA(IF(ROW(C:C)=1,"Percentage",IF(LEN(C:C),${T}:${T}/${ex.max},)))`),
     ] }] } },
     { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: "userEnteredFormat.textFormat.bold" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 1, startColumnIndex: 11, endColumnIndex: 12 }, cell: { userEnteredFormat: { numberFormat: { type: "PERCENT", pattern: "0.0%" } } }, fields: "userEnteredFormat.numberFormat" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 1, startColumnIndex: ex.pctCol, endColumnIndex: ex.pctCol + 1 }, cell: { userEnteredFormat: { numberFormat: { type: "PERCENT", pattern: "0.0%" } } }, fields: "userEnteredFormat.numberFormat" } },
   ];
 }
 // Drive's create_file answer carries the new file's ID; look for it in the usual places.
@@ -624,13 +727,13 @@ async function readBook(buf) {
   try { await wb.xlsx.load(buf); } catch { throw { code: "xlsx_read" }; }
   return wb;
 }
-function ensureResults(wb) {
-  let ws = wb.getWorksheet(TAB);
+function ensureResults(wb, ex) {
+  let ws = wb.getWorksheet(ex.tab);
   if (ws) return ws;
-  ws = wb.addWorksheet(TAB, { views: [{ state: "frozen", ySplit: 1 }] });
-  ws.addRow([...HEADERS, "Total", "Percentage"]).font = { bold: true };
-  ws.columns.forEach((col, i) => { col.width = i === 9 ? 40 : i >= 4 && i <= 8 ? 12 : 18; });
-  ws.getColumn(12).numFmt = "0.0%";
+  ws = wb.addWorksheet(ex.tab, { views: [{ state: "frozen", ySplit: 1 }] });
+  ws.addRow([...ex.headers, "Total", "Percentage"]).font = { bold: true };
+  ws.columns.forEach((col, i) => { col.width = i === ex.commentCol ? 40 : i >= 4 && i < ex.commentCol ? 12 : 18; });
+  ws.getColumn(ex.pctCol + 1).numFmt = "0.0%";
   return ws;
 }
 const cellValue = v => {
@@ -645,26 +748,26 @@ const cellValue = v => {
   return v;
 };
 function lastRow(ws) { let n = 1; ws.eachRow((row, i) => { if (row.hasValues) n = i; }); return n; }
-function bookRows(wb) {
-  const ws = wb.getWorksheet(TAB); if (!ws) return [];
-  const out = [];
+function bookRows(wb, ex) {
+  const ws = wb.getWorksheet(ex.tab); if (!ws) return [];
+  const out = [], T = ex.totalCol, P = ex.pctCol;
   for (let i = 2, end = lastRow(ws); i <= end; i++) {
     const row = ws.getRow(i), vals = [];
-    for (let j = 1; j <= 12; j++) vals.push(cellValue(row.getCell(j).value));
-    const scores = vals.slice(4, 9).map(Number);
-    if (vals[10] === "" && scores.every(n => !isNaN(n))) vals[10] = scores.reduce((a, b) => a + b, 0);
-    vals[11] = typeof vals[10] === "number" ? fmtPct(vals[10] / MAX_TOTAL) : "";
+    for (let j = 1; j <= P + 1; j++) vals.push(cellValue(row.getCell(j).value));
+    const scores = vals.slice(4, ex.commentCol).map(Number);
+    if (vals[T] === "" && scores.every(n => !isNaN(n))) vals[T] = scores.reduce((a, b) => a + b, 0);
+    vals[P] = typeof vals[T] === "number" ? fmtPct(vals[T] / ex.max) : "";
     out.push(vals.map(String));
   }
   return out;
 }
-function bookAppend(wb, rows) {
-  const ws = ensureResults(wb);
+function bookAppend(wb, rows, ex) {
+  const ws = ensureResults(wb, ex), last = colName(ex.commentCol - 1), T = colName(ex.totalCol);
   rows.forEach(vals => {
-    const n = lastRow(ws) + 1, total = vals.slice(4, 9).reduce((a, b) => a + (+b || 0), 0);
+    const n = lastRow(ws) + 1, total = vals.slice(4, ex.commentCol).reduce((a, b) => a + (+b || 0), 0);
     const row = ws.getRow(n);
-    row.values = [...vals, { formula: `SUM(E${n}:I${n})`, result: total }, { formula: `K${n}/${MAX_TOTAL}`, result: total / MAX_TOTAL }];
-    row.getCell(12).numFmt = "0.0%";
+    row.values = [...vals, { formula: `SUM(E${n}:${last}${n})`, result: total }, { formula: `${T}${n}/${ex.max}`, result: total / ex.max }];
+    row.getCell(ex.pctCol + 1).numFmt = "0.0%";
     row.commit();
   });
 }
@@ -689,8 +792,8 @@ const X = {
     } else { st.bytes = buf; await idb.set("xlsx", { name: st.name, bytes: buf }); }
     return buf;
   },
-  async rows(ask) { const { wb } = await X.load(ask); return bookRows(wb); },
-  async append(rows) { const { st, wb } = await X.load(true); bookAppend(wb, rows); await X.save(st, wb); },
+  async rows(ask, ex) { const { wb } = await X.load(ask); return bookRows(wb, ex); },
+  async append(rows, ex) { const { st, wb } = await X.load(true); bookAppend(wb, rows, ex); await X.save(st, wb); },
 };
 let downloads;
 async function downloadXlsx() {
@@ -717,11 +820,13 @@ $("sheetDownload").onclick = downloadXlsx;
 async function readSaved(fresh, ask) {
   if (!sheet) return;
   if (sheet.kind === "gsheet" && !googleOn()) return;
-  const id = sheet.id, btn = $("refresh");
+  const id = sheet.id, ex = EX, btn = $("refresh");
   btn.disabled = true; btn.textContent = "Loading…";
   try {
-    const rows = sheet.kind === "xlsx" ? await X.rows(ask) : await G.values(id, `${TAB}!A2:L`, fresh);
-    if (!sheet || sheet.id !== id) return;   // the choice changed while this was loading
+    const rows = sheet.kind === "xlsx" ? await X.rows(ask, ex)
+      : await G.hasTab(id, ex.tab, fresh) ? await G.values(id, a1(ex.tab, `A2:${colName(ex.pctCol)}`), fresh)
+      : [];
+    if (!sheet || sheet.id !== id || EX !== ex) return;   // the choice changed while this was loading
     renderSaved(rows);
     btn.textContent = "Refresh";
   } catch (e) {
@@ -734,24 +839,25 @@ async function readSaved(fresh, ask) {
 function renderSaved(rows) {
   const ul = $("saved"); ul.innerHTML = "";
   const list = rows.filter(r => r && r[2]).reverse().slice(0, 15);
-  if (!list.length) { ul.innerHTML = `<li><span class="who"><span>No results saved yet. Score a candidate, then tap Save result.</span></span></li>`; return; }
+  if (!list.length) { ul.innerHTML = `<li><span class="who"><span>No ${EX.name} results saved yet. Score a candidate, then tap Save result.</span></span></li>`; return; }
+  const cols = EX.criteria.map((c, i) => 4 + i), T = EX.totalCol, P = EX.pctCol;
   list.forEach(r => {
     const li = document.createElement("li");
     li.innerHTML = `<span class="who"><b></b><span></span></span><span class="pct"></span>`;
     li.querySelector("b").textContent = r[2];
-    li.querySelector(".who span").textContent = `${r[1] || ""} · ${[4,5,6,7,8].map(i => r[i] ?? "–").join(" ")}`;
-    li.querySelector(".pct").textContent = r[11] || (r[10] ? `${r[10]}/${MAX_TOTAL}` : "");
+    li.querySelector(".who span").textContent = `${r[1] || ""} · ${cols.map(i => r[i] ?? "–").join(" ")}`;
+    li.querySelector(".pct").textContent = r[P] || (r[T] ? `${r[T]}/${EX.max}` : "");
     ul.appendChild(li);
   });
 }
 
-async function appendRows(rows) {
-  if (sheet.kind === "xlsx") return X.append(rows);
-  return G.append(sheet.id, rows);
+async function appendRows(rows, ex = EX) {
+  if (sheet.kind === "xlsx") return X.append(rows, ex);
+  return G.append(sheet.id, rows, ex);
 }
 const savedWhere = () => sheet.kind === "xlsx" && sheet.mode === "browser"
   ? `the Excel copy in this browser. Tap Download to get the updated file`
-  : sheet.title || "your spreadsheet";
+  : `the ${EX.tab} tab of ${sheet.title || "your spreadsheet"}`;
 
 let saving = false;
 $("save").onclick = async () => {
@@ -759,7 +865,7 @@ $("save").onclick = async () => {
   const r = current();
   if (!r.cand) { say("Add the candidate's name before saving.", "bad"); $("cand").focus(); return; }
   const missing = CRITERIA.filter(c => r.scores[c.id] === undefined);
-  if (missing.length) { say(`Score all five criteria before saving. Still to score: ${missing.map(c => c.name).join(", ")}.`, "bad"); return; }
+  if (missing.length) { say(`Score all ${CRITERIA.length} criteria before saving. Still to score: ${missing.map(c => c.name).join(", ")}.`, "bad"); return; }
   if (!sheet || (sheet.kind === "gsheet" && !googleOn())) {
     openPicker(); say("Choose or create a spreadsheet first, then tap Save result again.", "bad");
     $("sheetPanel").scrollIntoView({ block: "start" }); return;
@@ -780,7 +886,7 @@ $("refresh").onclick = () => readSaved(true, true);
 
 /* ---------- Choosing where to save ---------- */
 let pickerOpen = false;
-let pendingTab = null;          // a chosen spreadsheet or workbook that has no Results tab yet
+let pendingTab = null;          // a chosen spreadsheet or workbook that has no tab for the current exam yet
 let listSeq = 0;
 let busy = false;
 let driveGranted = false;
@@ -793,9 +899,9 @@ function renderSheet() {
   $("sheetName").textContent = sheet ? (sheet.title || "Untitled spreadsheet") : "No spreadsheet chosen";
   $("sheetSub").textContent = !sheet ? "Choose where results are saved."
     : x && sheet.mode === "browser" ? "Excel file kept in this browser. Download it to open it in Excel."
-    : x ? `Excel file on this device. Results go in its ${TAB} tab.`
+    : x ? `Excel file on this device. ${EX.name} results go in its ${EX.tab} tab.`
     : !googleOn() ? "Google Sheet. Saving to it works on the page where you chose it."
-    : `Google Sheet. Results go in its ${TAB} tab.`;
+    : `Google Sheet. ${EX.name} results go in its ${EX.tab} tab.`;
   $("sheetOpen").hidden = !sheet || x;
   if (sheet && !x) $("sheetOpen").href = sheetUrl(sheet.id);
   $("sheetDownload").hidden = !x;
@@ -884,8 +990,8 @@ function lock(on) {
 }
 function askAddTab(p) {
   pendingTab = p;
-  pickSay(`${p.title} has no ${TAB} tab yet. The app can add one with the column headers it needs. Your other tabs aren't changed.`);
-  $("addTab").textContent = `Add a ${TAB} tab to ${p.title}`;
+  pickSay(`${p.title} has no ${EX.tab} tab yet. The app can add one with the column headers it needs. Your other tabs aren't changed.`);
+  $("addTab").textContent = `Add a ${EX.tab} tab to ${p.title}`;
   $("addTabRow").hidden = false;
 }
 
@@ -894,7 +1000,8 @@ async function choose(id, titleHint) {
   lock(true); $("addTabRow").hidden = true; pickSay("Opening the spreadsheet…");
   try {
     const m = await G.meta(id), title = m.title || titleHint;
-    if (m.tabs.some(t => t.title === TAB)) { setSheet({ kind: "gsheet", id, title }); say(`Results will be saved to ${title}.`, "ok"); return; }
+    G.tabs.set(id, m.tabs);
+    if (m.tabs.some(t => t.title === EX.tab)) { setSheet({ kind: "gsheet", id, title }); say(`Results will be saved to ${title}.`, "ok"); return; }
     askAddTab({ kind: "gsheet", id, title, ids: m.tabs.map(t => t.sheetId) });
   } catch (e) {
     pickSay(e && e.code === "tool_error"
@@ -918,22 +1025,19 @@ $("gPicker").onclick = async () => {
 $("addTab").onclick = async () => {
   if (busy || !pendingTab) return;
   const p = pendingTab;
-  lock(true); pickSay(`Adding a ${TAB} tab…`);
+  const ex = EX;
+  lock(true); pickSay(`Adding a ${ex.tab} tab…`);
   try {
     if (p.kind === "xlsx") {
-      ensureResults(p.wb);
+      ensureResults(p.wb, ex);
       await X.save(p.st, p.wb);
       await useStored(p.st);
-      say(`Added a ${TAB} tab to ${p.title}. Results will be saved there.`, "ok");
+      say(`Added a ${ex.tab} tab to ${p.title}. ${ex.name} results will be saved there.`, "ok");
       return;
     }
-    let sheetId; do { sheetId = Math.floor(Math.random() * 2e9) + 1; } while (p.ids.includes(sheetId));
-    await G.batch(p.id, [
-      { addSheet: { properties: { sheetId, title: TAB, gridProperties: { rowCount: 1000, columnCount: 12, frozenRowCount: 1 } } } },
-      ...setupRequests(sheetId),
-    ]);
+    await G.ensureTab(p.id, ex);
     setSheet({ kind: "gsheet", id: p.id, title: p.title });
-    say(`Added a ${TAB} tab to ${p.title}. Results will be saved there.`, "ok");
+    say(`Added a ${ex.tab} tab to ${p.title}. ${ex.name} results will be saved there.`, "ok");
   } catch (e) {
     pickSay(explain(e, "write", p.kind === "xlsx" ? "Excel" : "Google Sheets")[0].replace("the row may or may not have been added", "the tab may or may not have been added"), "bad");
   } finally { lock(false); }
@@ -945,7 +1049,7 @@ $("newGo").onclick = async () => {
   if (!title) { pickSay("Give the new spreadsheet a name.", "bad"); $("newName").focus(); return; }
   lock(true); pickSay(`Creating ${title} in your Google Drive…`);
   try {
-    const id = await G.create(title);
+    const id = await G.create(title, EX);
     setSheet({ kind: "gsheet", id, title });
     say(`Created ${title}. Results will be saved there.`, "ok");
   } catch (e) {
@@ -965,7 +1069,7 @@ async function useStored(st) {
 async function openBook(buf, name, handle) {
   const wb = await readBook(buf);
   const st = handle ? { name, handle } : { name, bytes: buf };
-  if (wb.getWorksheet(TAB)) { await useStored(st); say(`Results will be saved to ${name}.`, "ok"); return; }
+  if (wb.getWorksheet(EX.tab)) { await useStored(st); say(`Results will be saved to ${name}.`, "ok"); return; }
   askAddTab({ kind: "xlsx", title: name, wb, st });
 }
 $("xOpen").onclick = async () => {
@@ -994,7 +1098,7 @@ $("xFile").onchange = async () => {
 $("xNew").onclick = async () => {
   if (busy) return;
   pickSay(""); $("addTabRow").hidden = true;
-  const suggestedName = "C1 Speaking Results.xlsx";
+  const suggestedName = "Cambridge Speaking Results.xlsx";
   let handle = null;
   if (canFile && window.showSaveFilePicker) {
     try { handle = await window.showSaveFilePicker({ ...XLSX_PICK, suggestedName }); }
@@ -1004,7 +1108,7 @@ $("xNew").onclick = async () => {
   try {
     const ExcelJS = await loadExcel();
     const wb = new ExcelJS.Workbook();
-    ensureResults(wb);
+    ensureResults(wb, EX);
     const st = handle ? { name: handle.name, handle } : { name: suggestedName };
     await X.save(st, wb);
     await useStored(st);
@@ -1018,7 +1122,8 @@ $("pickCancel").onclick = closePicker;
 
 /* Candidates saved on this device by the earlier version of this page */
 function showLegacy() {
-  const old = store.get("c1-saved", []).filter(r => r && r.cand && CRITERIA.every(c => r.scores && r.scores[c.id] !== undefined));
+  // these were all C1 Advanced results, so they go to the C1 tab whichever exam is picked now
+  const old = store.get("c1-saved", []).filter(r => r && r.cand && EXAMS.c1.criteria.every(c => r.scores && r.scores[c.id] !== undefined));
   $("legacyRow").hidden = !old.length || !sheet || (sheet.kind === "gsheet" && !googleOn());
   $("legacy").textContent = `Add ${old.length} ${old.length === 1 ? "candidate" : "candidates"} saved on this device to the spreadsheet`;
   return old;
@@ -1027,7 +1132,7 @@ $("legacy").onclick = async () => {
   const old = showLegacy(); if (!old.length || !sheet) return;
   const btn = $("legacy"); btn.disabled = true; btn.textContent = "Adding…";
   try {
-    await appendRows(old.map(r => rowFor(r, (r.date || today()) + " 00:00")));
+    await appendRows(old.map(r => rowFor(r, (r.date || today()) + " 00:00", EXAMS.c1)), EXAMS.c1);
     store.del("c1-saved");
     say(`Added ${old.length} saved ${old.length === 1 ? "candidate" : "candidates"} to the spreadsheet.`, "ok");
     readSaved(true, true);
@@ -1047,8 +1152,47 @@ resetBtn.onclick = () => {
   if (!resetBtn.dataset.c) { resetBtn.dataset.c = "1"; resetBtn.textContent = "Tap again to clear"; setTimeout(() => { delete resetBtn.dataset.c; resetBtn.textContent = "New candidate"; }, 3000); return; }
   delete resetBtn.dataset.c; resetBtn.textContent = "New candidate";
   const exam = $("exam").value;
-  load({ exam, date: today() }); $("copyfall").hidden = true; saveDraft(); say(""); window.scrollTo({ top: 0 });
+  levelAsk = null; $("levelsMsg").hidden = true;
+  load({ level: EX.key, exam, date: today() }); $("copyfall").hidden = true; saveDraft(); say(""); window.scrollTo({ top: 0 });
 };
+
+/* ---------- Choosing the exam ---------- */
+function renderLevels() {
+  $("levels").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.level === EX.key)));
+  $("title").textContent = `${EX.name} Speaking`;
+  document.title = `${EX.name} Speaking Scorer`;
+  $("savedHead").textContent = `Saved ${EX.name} results`;
+}
+let levelAsk = null;
+function setLevel(key) {
+  if (key === EX.key) return;
+  const msg = $("levelsMsg");
+  // changing exam clears the bands chosen so far (criteria differ), so ask for a second tap first
+  if (Object.keys(scores).length && levelAsk !== key) {
+    levelAsk = key;
+    msg.textContent = `Switching to ${EXAMS[key].name} clears the bands you've chosen for this candidate. Tap ${EXAMS[key].short} again to switch.`;
+    msg.hidden = false;
+    return;
+  }
+  levelAsk = null; msg.hidden = true;
+  const keep = current();
+  EX = EXAMS[key]; CRITERIA = EX.criteria;
+  store.set(LEVEL_KEY, key);
+  buildCriteria();
+  load({ ...keep, level: key, scores: {} });
+  saveDraft();
+  renderLevels(); renderSheet(); say("");
+  if (sheet) { $("saved").innerHTML = ""; readSaved(false, false); }
+}
+Object.values(EXAMS).forEach(x => {
+  const b = document.createElement("button");
+  b.type = "button"; b.dataset.level = x.key;
+  b.innerHTML = `<b>${x.short}</b>${x.name.split(" ").slice(1).join(" ")}`;
+  b.setAttribute("aria-label", x.name);
+  b.onclick = () => setLevel(x.key);
+  $("levels").appendChild(b);
+});
+renderLevels();
 
 buildCriteria();
 load(store.get("c1-draft", { date: today() }));

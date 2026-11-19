@@ -1,18 +1,19 @@
-# C1 Advanced Speaking Scorer
+# Cambridge Speaking Scorer
 
-A single-page web app for scoring Cambridge C1 Advanced Speaking. The examiner taps the band descriptor (0 to 5) that best matches the candidate on each of five criteria, and the page totals the score out of 25.
+A single-page web app for scoring Cambridge English Speaking exams. Pick the exam at the top of the page (A2 Key, B1 Preliminary, B2 First or C1 Advanced), then tap the band descriptor (0 to 5) that best matches the candidate on each criterion. The page totals the score as you go.
 
 ## Criteria
 
-Each criterion is scored 0 to 5 with a weight of 1, for a maximum of 25:
+Each criterion is scored 0 to 5 with a weight of 1. Global Achievement is not scored.
 
-1. Grammatical Resource
-2. Lexical Resource
-3. Discourse Management
-4. Pronunciation
-5. Interactive Communication
+| Exam | Criteria | Maximum |
+|---|---|---|
+| A2 Key | Grammar and Vocabulary, Pronunciation, Interactive Communication | 15 |
+| B1 Preliminary | Grammar and Vocabulary, Discourse Management, Pronunciation, Interactive Communication | 20 |
+| B2 First | Grammar and Vocabulary, Discourse Management, Pronunciation, Interactive Communication | 20 |
+| C1 Advanced | Grammatical Resource, Lexical Resource, Discourse Management, Pronunciation, Interactive Communication | 25 |
 
-Bands 1, 3 and 5 have full descriptors. Bands 2 and 4 mean the performance shares features of the bands either side, and 0 is below Band 1.
+Bands 1, 3 and 5 have full descriptors. Bands 2 and 4 mean the performance shares features of the bands either side, and 0 is below Band 1. All descriptors come from Cambridge's "Assessing speaking" guides for teachers (2024/25), which cover the "for Schools" versions too.
 
 ## Features
 
@@ -67,18 +68,20 @@ Published as a Claude artifact, the page saves to Google Sheets through the owne
 
 The first time you open the page it asks where to save results:
 
-- **Google Sheet**: pick one (on the website, through Google's file picker; in the artifact, from a list or by pasting a link), or create a new one that's set up for you. If a spreadsheet has no `Results` tab, the page offers to add one; your other tabs aren't touched.
-- **Excel file**: open an `.xlsx` file or create a new one. A file without a `Results` tab gets one added, the same way.
+- **Google Sheet**: pick one (on the website, through Google's file picker; in the artifact, from a list or by pasting a link), or create a new one that's set up for you. If a spreadsheet has no tab for the exam you've picked, the page offers to add one; your other tabs aren't touched.
+- **Excel file**: open an `.xlsx` file or create a new one. A file without that tab gets one added, the same way.
 
 The choice is stored in your browser, so it's remembered on your next visit. Tap **Change** at the top of the page to switch. No spreadsheet ID is kept in this repository.
 
-A `Results` tab created by the page has these columns:
+Each exam has its own tab. C1 Advanced uses the `Results` tab (as before the exam picker existed); the others use `A2 Key Results`, `B1 Preliminary Results` and `B2 First Results`. A tab is added the first time you save a result for that exam, and your other tabs aren't touched.
+
+Every tab has the same layout: Saved at, Date, Candidate, Examiner, one column per criterion, Comments, then Total and Percentage (formulas). For C1 that is:
 
 | A | B | C | D | E | F | G | H | I | J | K | L |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Saved at | Date | Candidate | Examiner | Grammatical Resource | Lexical Resource | Discourse Management | Pronunciation | Interactive Communication | Comments | Total | Percentage |
 
-Total (out of 25) and Percentage are formulas. If you set up a `Results` tab by hand, the page writes columns A to J, and the "Saved results" list shows column L, or K if L is empty.
+For B1 and B2 the criteria fill E to H (Comments in I, Total in J, Percentage in K); for A2 they fill E to G.
 
 ## Privacy
 
