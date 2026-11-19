@@ -251,7 +251,6 @@ a.mini { text-decoration: none; }
 // These values are public by design (Google limits them to your website's address); they are not passwords.
 const GOOGLE = {
   clientId: "789131470655-c3fv8djaovb7koc3h1d2u9l9r11sp128.apps.googleusercontent.com",   // OAuth client ID, ends in .apps.googleusercontent.com
-  apiKey: "AIzaSyAi2mZYf4q5SLJ5mxgNB1i_7_x8_09WukE",     // API key, used by Google's file picker
   appId: "789131470655",      // Google Cloud project number
 };
 const SERVER = "Google Sheets";
@@ -580,7 +579,8 @@ const web = {
     await new Promise((res, rej) => gapi.load("picker", { callback: res, onerror: rej }));
     return new Promise(resolve => {
       const view = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS).setIncludeFolders(true).setSelectFolderEnabled(false);
-      const b = new google.picker.PickerBuilder().addView(view).setOAuthToken(token).setDeveloperKey(GOOGLE.apiKey)
+      // No developer (API) key: with a signed-in user's token the picker works without one, and adding one was rejected.
+      const b = new google.picker.PickerBuilder().addView(view).setOAuthToken(token)
         .setCallback(d => {
           if (d.action === google.picker.Action.PICKED && d.docs && d.docs[0]) resolve({ id: d.docs[0].id, title: d.docs[0].name });
           else if (d.action === google.picker.Action.CANCEL) resolve(null);

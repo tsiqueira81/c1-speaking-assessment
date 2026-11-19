@@ -49,9 +49,11 @@ The website asks for Google's `drive.file` permission only: the page can open ju
 2. In **APIs & Services → Library**, enable **Google Sheets API**, **Google Drive API** and **Google Picker API**.
 3. In **Google Auth Platform** (the OAuth consent screen), fill in the app name and your email, choose **External** as the audience, and add the `.../auth/drive.file` scope under **Data access**. Then, under **Audience**, tap **Publish app** so anyone can sign in, not only test users.
 4. In **Clients**, create an **OAuth client ID** of type **Web application**. Under **Authorized JavaScript origins**, add your site's address, for example `https://tsiqueira81.github.io`. Copy the client ID.
-5. In **APIs & Services → Credentials**, create an **API key**. Restrict it to **Websites** with your site's address (for example `https://tsiqueira81.github.io/*`), and to the **Google Picker API**. Copy the key.
-6. Copy the **project number** from the project's dashboard.
-7. Paste the three values into `GOOGLE` near the top of the script in `index.html`. They're safe to publish: Google only accepts them from the addresses you listed.
+5. Copy the **project number** from the project's settings page.
+6. Paste the client ID and project number into `GOOGLE` near the top of the script in `index.html`. They're safe to publish: Google only accepts sign-ins from the addresses you listed.
+7. In **Google Auth Platform → Branding**, fill in the home page and privacy policy links (`.../privacy.html`) and add your site's domain under authorized domains. Google needs these before you can publish the app.
+
+No API key is needed: Google's file picker works with each person's sign-in alone.
 
 ### Publishing on GitHub Pages
 
