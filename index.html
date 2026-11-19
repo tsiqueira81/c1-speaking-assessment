@@ -266,19 +266,20 @@ const DRIVE = "Google Drive";
 const SHEET_KEY = "c1-sheet";
 const LEVEL_KEY = "speaking-level";
 const BETWEEN = (a,b) => `Performance shares features of Bands ${a} and ${b}.`;
+// C1 Advanced: wording from Cambridge's "C1 Advanced: Assessing speaking" guide for teachers (2024/25).
 const C1_CRITERIA = [
   { id: "gr", name: "Grammatical Resource", d: {
     1: "Shows a good degree of control of simple grammatical forms, and attempts some complex grammatical forms.",
     3: "Shows a good degree of control of a range of simple and some complex grammatical forms.",
     5: "Maintains control of a wide range of grammatical forms." } },
   { id: "lr", name: "Lexical Resource", d: {
-    1: "Uses appropriate vocabulary to give and exchange views, but only when discussing familiar topics.",
+    1: "Uses appropriate vocabulary to give and exchange views, but only when talking about familiar topics.",
     3: "Uses a range of appropriate vocabulary to give and exchange views on familiar and unfamiliar topics.",
-    5: "Uses a wide range of appropriate vocabulary with flexibility to give and exchange views on unfamiliar and abstract topics." } },
+    5: "Uses a wide range of appropriate vocabulary to give and exchange views on familiar and unfamiliar topics." } },
   { id: "dm", name: "Discourse Management", d: {
-    1: "Produces extended stretches of language with very little hesitation. Contributions are relevant and there is a clear organisation of ideas. Uses a range of cohesive devices and discourse markers.",
-    3: "Produces extended stretches of language with ease and with very little hesitation. Contributions are relevant, coherent and varied. Uses a wide range of cohesive devices and discourse markers.",
-    5: "Produces extended stretches of language with ease and with very little hesitation. Contributions are relevant, coherent, varied and detailed. Makes full and effective use of a wide range of cohesive devices and discourse markers." } },
+    1: "Produces extended stretches of language despite some hesitation. Contributions are relevant and there is very little repetition. Uses a range of cohesive devices.",
+    3: "Produces extended stretches of language with very little hesitation. Contributions are relevant and there is a clear organisation of ideas. Uses a range of cohesive devices and discourse markers.",
+    5: "Produces extended stretches of language with ease and with very little hesitation. Contributions are relevant, coherent and varied. Uses a wide range of cohesive devices and discourse markers." } },
   { id: "pr", name: "Pronunciation", d: {
     1: "Is intelligible. Intonation is generally appropriate. Sentence and word stress is generally accurately placed. Individual sounds are generally articulated clearly.",
     3: "Is intelligible. Intonation is appropriate. Sentence and word stress is accurately placed. Individual sounds are articulated clearly.",
@@ -286,7 +287,7 @@ const C1_CRITERIA = [
   { id: "ic", name: "Interactive Communication", d: {
     1: "Initiates and responds appropriately. Maintains and develops the interaction and negotiates towards an outcome with very little support.",
     3: "Initiates and responds appropriately, linking contributions to those of other speakers. Maintains and develops the interaction and negotiates towards an outcome.",
-    5: "Interacts with ease by skilfully linking contributions to those of other speakers. Widens the scope of the interaction and negotiates towards an outcome." } },
+    5: "Interacts with ease, linking contributions to those of other speakers. Widens the scope of the interaction and negotiates towards an outcome." } },
 ];
 // A2 Key, B1 Preliminary and B2 First: wording from Cambridge's "Assessing speaking" guides for teachers (2024/25).
 const A2_CRITERIA = [

@@ -13,7 +13,7 @@ Each criterion is scored 0 to 5 with a weight of 1. Global Achievement is not sc
 | B2 First | Grammar and Vocabulary, Discourse Management, Pronunciation, Interactive Communication | 20 |
 | C1 Advanced | Grammatical Resource, Lexical Resource, Discourse Management, Pronunciation, Interactive Communication | 25 |
 
-Bands 1, 3 and 5 have full descriptors. Bands 2 and 4 mean the performance shares features of the bands either side, and 0 is below Band 1. The A2, B1 and B2 descriptors come from Cambridge's "Assessing speaking" guides for teachers (2024/25), which cover the "for Schools" versions too.
+Bands 1, 3 and 5 have full descriptors. Bands 2 and 4 mean the performance shares features of the bands either side, and 0 is below Band 1. All descriptors come from Cambridge's "Assessing speaking" guides for teachers (2024/25), which cover the "for Schools" versions too.
 
 ## Features
 
