@@ -35,6 +35,16 @@ The page is plain HTML, CSS and JavaScript with no build step. It can run in thr
 | A public website without the `GOOGLE` settings, or `index.html` opened from disk | No | Yes |
 | A Claude artifact on claude.ai | Through the owner's Claude connectors | Yes, kept in the browser with a Download button |
 
+### Installing it as an app
+
+On the website, phones and computers can install the page as an app with its own icon:
+
+- **Android (Chrome)**: open the site, tap the ⋮ menu, then **Install app** (or **Add to Home screen → Install**).
+- **iPhone and iPad (Safari)**: tap **Share**, then **Add to Home Screen**.
+- **Chrome and Edge on a computer**: click the install icon at the right of the address bar.
+
+The app opens in its own window and always loads the latest version when online. A small service worker (`sw.js`) keeps a copy of the page so it still opens offline; it only handles this site's own files, so Google sign-in, Drive and Sheets requests always go straight to Google and are never cached.
+
 ### Excel files
 
 - **Chrome and Edge on a computer**: open or create an `.xlsx` file and the page saves each result straight into it. The browser asks once for permission to edit the file. Use a workbook just for these results: the page rewrites the file when it saves, which can drop charts, pictures or pivot tables.
